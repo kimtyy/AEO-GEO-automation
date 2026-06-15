@@ -125,6 +125,15 @@ function initAnalysis() {
 
             console.log("Analysis Results:", results);
             
+            // Supabase에 분석 결과 자동 저장
+            await supabaseService.saveAnalysisResult({
+                store_id: STORE_DATA.store_name,
+                claude_result: results[0],
+                chatgpt_result: results[1],
+                gemini_result: results[2],
+                created_at: new Date().toISOString()
+            });
+            
             // 결과 표시 (UI 업데이트 로직은 HTML에 미리 작성된 상태로 보이기만 처리)
             analysisResults.style.display = 'block';
 
