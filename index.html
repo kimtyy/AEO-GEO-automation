@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1024">
+    <title>AI 추천엔진 대시보드 - AEO-GEO Automation</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">AEO/GEO</div>
+            <nav>
+                <ul id="sidebar-menu">
+                    <li data-target="page-dashboard" class="active">대시보드</li>
+                    <li data-target="page-analysis">진단 분석</li>
+                    <li data-target="page-content">콘텐츠 관리</li>
+                    <li data-target="page-monitoring">모니터링</li>
+                    <li data-target="page-competitor">경쟁사 분석</li>
+                    <li data-target="page-report">리포트</li>
+                    <li data-target="page-settings">설정</li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h2 id="page-title">대시보드</h2>
+                <div class="store-info" id="store-header-info">
+                    <!-- Loaded from store.json -->
+                </div>
+            </header>
+
+            <div class="page-container">
+                <!-- Dashboard Page -->
+                <section id="page-dashboard" class="page active">
+                    <!-- KPIs -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <h3>AI 가시성 점수</h3>
+                            <div class="value" style="color: #185FA5;">85<span class="unit">점</span></div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>AI 언급률</h3>
+                            <div class="value" style="color: #3B6D11;">72<span class="unit">%</span></div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>모니터링 질문 수</h3>
+                            <div class="value">124<span class="unit">개</span></div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>다음 측정일</h3>
+                            <div class="value">D-3</div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-row">
+                        <!-- Radar Chart -->
+                        <div class="card chart-card">
+                            <h3>AI 추천 엔진 진단 지수</h3>
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                        <!-- Mention Bar Chart -->
+                        <div class="card chart-card">
+                            <h3>AI별 언급률</h3>
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Flow -->
+                    <div class="card flow-card">
+                        <h3>자동화 플로우</h3>
+                        <div class="flow-steps">
+                            <div class="step">진단</div>
+                            <div class="arrow">→</div>
+                            <div class="step">처방</div>
+                            <div class="arrow">→</div>
+                            <div class="step">액션</div>
+                            <div class="arrow">→</div>
+                            <div class="step">측정</div>
+                            <div class="arrow">→</div>
+                            <div class="step">개선</div>
+                        </div>
+                    </div>
+
+                    <!-- Prescription Cards -->
+                    <h3 class="section-title">이번 주 추천 처방</h3>
+                    <div class="prescription-grid">
+                        <div class="card prescription-card">
+                            <h4>메뉴 정보 보강</h4>
+                            <p>Gemini에서 눈꽃빙수 메뉴 누락 발견. 네이버 플레이스 메뉴 업데이트 필요.</p>
+                        </div>
+                        <div class="card prescription-card">
+                            <h4>주차 정보 명시</h4>
+                            <p>ChatGPT가 주차 가능 여부를 확신하지 못함. 블로그 리뷰에 주차 키워드 추가.</p>
+                        </div>
+                        <div class="card prescription-card">
+                            <h4>단체 회식 키워드</h4>
+                            <p>Claude에서 맹호부대 관련 회식 장소로 추천 비율 40%. 타겟팅 강화.</p>
+                        </div>
+                        <div class="card prescription-card">
+                            <h4>영업시간 수정</h4>
+                            <p>금/토 영업시간 연장(01:00) 정보가 Perplexity에 미반영.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tabs & Tables -->
+                    <div class="card tabs-card">
+                        <div class="tabs" id="dashboard-tabs">
+                            <div class="tab active" data-target="tab-content">콘텐츠 현황</div>
+                            <div class="tab" data-target="tab-history">변화 이력</div>
+                            <div class="tab" data-target="tab-monitoring">AI 모니터링 이력</div>
+                            <div class="tab" data-target="tab-action">액션</div>
+                        </div>
+                        <div class="tab-content-area">
+                            <div id="tab-content" class="tab-pane active">
+                                <h4>경쟁사 비교 테이블</h4>
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>업체명</th>
+                                            <th>가시성 점수</th>
+                                            <th>ChatGPT</th>
+                                            <th>Claude</th>
+                                            <th>Gemini</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>설맥 가평현리점 (자사)</td>
+                                            <td>85</td>
+                                            <td>상</td>
+                                            <td>중</td>
+                                            <td>상</td>
+                                        </tr>
+                                        <tr>
+                                            <td>A 호프</td>
+                                            <td>60</td>
+                                            <td>중</td>
+                                            <td>하</td>
+                                            <td>중</td>
+                                        </tr>
+                                        <tr>
+                                            <td>B 맥주</td>
+                                            <td>45</td>
+                                            <td>하</td>
+                                            <td>하</td>
+                                            <td>하</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="tab-history" class="tab-pane">변화 이력 콘텐츠...</div>
+                            <div id="tab-monitoring" class="tab-pane">AI 모니터링 이력 콘텐츠...</div>
+                            <div id="tab-action" class="tab-pane">액션 콘텐츠...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analysis Page -->
+                <section id="page-analysis" class="page">
+                    <div class="card">
+                        <h3>API 키 설정 및 진단</h3>
+                        <div class="form-group">
+                            <label>Claude API Key</label>
+                            <input type="password" id="claude-key" placeholder="sk-ant-...">
+                        </div>
+                        <div class="form-group">
+                            <label>ChatGPT API Key</label>
+                            <input type="password" id="chatgpt-key" placeholder="sk-...">
+                        </div>
+                        <div class="form-group">
+                            <label>Gemini API Key</label>
+                            <input type="password" id="gemini-key" placeholder="AIzaSy...">
+                        </div>
+                        <button class="btn btn-primary" id="btn-analyze">3개 AI 동시 진단 분석 실행</button>
+                    </div>
+
+                    <div class="analysis-results" id="analysis-results" style="display: none;">
+                        <h3 class="section-title">분석 결과 및 자동 진단 처방</h3>
+                        <div class="result-grid">
+                            <div class="card result-card">
+                                <div class="ai-name">Claude</div>
+                                <div class="status success">양호</div>
+                                <p class="diagnosis">"가평 현리 단체 회식" 키워드에 대해 가장 높은 추천율을 보임.</p>
+                                <div class="prescription">현재 상태 유지 및 긍정 리뷰 지속 생성</div>
+                            </div>
+                            <div class="card result-card">
+                                <div class="ai-name">ChatGPT</div>
+                                <div class="status warning">주의</div>
+                                <p class="diagnosis">영업시간 및 주차 정보에 대한 환각(Hallucination) 현상 일부 발견.</p>
+                                <div class="prescription">공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검</div>
+                            </div>
+                            <div class="card result-card">
+                                <div class="ai-name">Gemini</div>
+                                <div class="status">보통</div>
+                                <p class="diagnosis">신메뉴(눈꽃빙수)에 대한 인지도가 낮음.</p>
+                                <div class="prescription">블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Other Pages (Placeholders) -->
+                <section id="page-content" class="page"><div class="card">콘텐츠 관리 페이지입니다.</div></section>
+                <section id="page-monitoring" class="page"><div class="card">모니터링 페이지입니다.</div></section>
+                <section id="page-competitor" class="page"><div class="card">경쟁사 분석 페이지입니다.</div></section>
+                <section id="page-report" class="page"><div class="card">리포트 페이지입니다.</div></section>
+                <section id="page-settings" class="page"><div class="card">설정 페이지입니다.</div></section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
