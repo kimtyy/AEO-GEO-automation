@@ -333,7 +333,6 @@ function initSettingsEdit() {
             }
         });
     }
-}
     
     if (btnSave) {
         btnSave.addEventListener('click', async () => {
