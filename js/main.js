@@ -140,17 +140,30 @@ function loadStoreData() {
         const settingsStoreInfo = document.getElementById('settings-store-info');
         if (settingsStoreInfo) {
             let hoursStr = '';
-            if (currentStore.hours && typeof currentStore.hours === 'object') {
-                hoursStr = `월~목: ${currentStore.hours.mon_thu || ''}, 금~토: ${currentStore.hours.fri_sat || ''}`;
-            } else if (typeof currentStore.hours === 'string') {
-                try {
-                    const parsed = JSON.parse(currentStore.hours);
-                    hoursStr = `월~목: ${parsed.mon_thu || ''}, 금~토: ${parsed.fri_sat || ''}`;
-                } catch(e) {
+            if (currentStore.hours) {
+                let parsed = currentStore.hours;
+                if (typeof parsed === 'string') {
+                    try { parsed = JSON.parse(parsed); } catch(e) { parsed = {}; }
+                }
+                if (typeof parsed === 'object') {
+                    const days = [
+                        { key: 'mon', label: '월' },
+                        { key: 'tue', label: '화' },
+                        { key: 'wed', label: '수' },
+                        { key: 'thu', label: '목' },
+                        { key: 'fri', label: '금' },
+                        { key: 'sat', label: '토' },
+                        { key: 'sun', label: '일' }
+                    ];
+                    
+                    hoursStr = '<ul style="margin:0; padding-left:20px;">' + days.map(d => {
+                        const val = parsed[d.key];
+                        const text = (!val || val === '휴무') ? '휴무' : val;
+                        return `<li>${d.label}: ${text}</li>`;
+                    }).join('') + '</ul>';
+                } else {
                     hoursStr = currentStore.hours || '';
                 }
-            } else {
-                hoursStr = currentStore.hours || '';
             }
             
             settingsStoreInfo.innerHTML = `
@@ -207,22 +220,37 @@ function initSettingsEdit() {
             
             if (isEditing) {
                 btnEdit.textContent = '취소';
-                let mon_thu = '';
-                let fri_sat = '';
-                if (currentStore.hours && typeof currentStore.hours === 'object') {
-                    mon_thu = currentStore.hours.mon_thu || '';
-                    fri_sat = currentStore.hours.fri_sat || '';
-                } else if (typeof currentStore.hours === 'string') {
-                    try {
-                        const parsed = JSON.parse(currentStore.hours);
-                        mon_thu = parsed.mon_thu || '';
-                        fri_sat = parsed.fri_sat || '';
-                    } catch(e) {
-                        mon_thu = currentStore.hours || '';
-                    }
-                } else {
-                    mon_thu = currentStore.hours || '';
+                let h = currentStore.hours || {};
+                if (typeof h === 'string') {
+                    try { h = JSON.parse(h); } catch(e) { h = {}; }
                 }
+                const days = [
+                    { key: 'mon', label: '월' },
+                    { key: 'tue', label: '화' },
+                    { key: 'wed', label: '수' },
+                    { key: 'thu', label: '목' },
+                    { key: 'fri', label: '금' },
+                    { key: 'sat', label: '토' },
+                    { key: 'sun', label: '일' }
+                ];
+                let hoursEditHtml = '<div style="grid-column: span 2;">';
+                days.forEach(d => {
+                    const val = h[d.key];
+                    const isClosed = (!val || val === '휴무');
+                    const textVal = isClosed ? '' : val;
+                    const checkedStr = isClosed ? 'checked' : '';
+                    const disabledStr = isClosed ? 'disabled' : '';
+                    hoursEditHtml += `
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <span style="width: 20px;">${d.label}</span>
+                            <input type="text" id="edit-hours-${d.key}" class="form-control" style="flex: 1;" value="${textVal}" ${disabledStr}>
+                            <label style="display:flex; align-items:center; gap:3px;">
+                                <input type="checkbox" id="edit-closed-${d.key}" ${checkedStr} onchange="document.getElementById('edit-hours-${d.key}').disabled = this.checked"> 휴무
+                            </label>
+                        </div>
+                    `;
+                });
+                hoursEditHtml += '</div>';
                 
                 container.innerHTML = `
                     <div style="font-weight: bold;">매장명</div><div><input type="text" id="edit-store-name" class="form-control" value="${currentStore.store_name || ''}"></div>
@@ -230,8 +258,7 @@ function initSettingsEdit() {
                     <div style="font-weight: bold;">주소</div><div><input type="text" id="edit-address" class="form-control" value="${currentStore.address || ''}"></div>
                     <div style="font-weight: bold;">업종</div><div><input type="text" id="edit-category" class="form-control" value="${currentStore.category || ''}"></div>
                     <div style="font-weight: bold;">컨셉</div><div><input type="text" id="edit-concept" class="form-control" value="${currentStore.concept || ''}"></div>
-                    <div style="font-weight: bold;">영업시간 (월~목)</div><div><input type="text" id="edit-hours-mon-thu" class="form-control" value="${mon_thu}"></div>
-                    <div style="font-weight: bold;">영업시간 (금~토)</div><div><input type="text" id="edit-hours-fri-sat" class="form-control" value="${fri_sat}"></div>
+                    <div style="font-weight: bold; padding-top: 5px;">영업시간</div>${hoursEditHtml}
                 `;
             } else {
                 btnEdit.textContent = '수정';
@@ -272,10 +299,14 @@ function initSettingsEdit() {
                 updatedData.address = document.getElementById('edit-address').value;
                 updatedData.category = document.getElementById('edit-category').value;
                 updatedData.concept = document.getElementById('edit-concept').value;
-                updatedData.hours = {
-                    mon_thu: document.getElementById('edit-hours-mon-thu').value,
-                    fri_sat: document.getElementById('edit-hours-fri-sat').value
-                };
+                
+                const keys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                let newHours = {};
+                keys.forEach(k => {
+                    const isClosed = document.getElementById(`edit-closed-${k}`).checked;
+                    newHours[k] = isClosed ? '휴무' : document.getElementById(`edit-hours-${k}`).value;
+                });
+                updatedData.hours = newHours;
             }
             
             try {
@@ -321,16 +352,20 @@ function initNewStoreModal() {
     
     if(btnSave) {
         btnSave.addEventListener('click', async () => {
+            const keys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            let newHours = {};
+            keys.forEach(k => {
+                const isClosed = document.getElementById(`modal-closed-${k}`).checked;
+                newHours[k] = isClosed ? '휴무' : document.getElementById(`modal-hours-${k}`).value;
+            });
+            
             const data = {
                 store_name: document.getElementById('modal-store-name').value,
                 brand: document.getElementById('modal-store-brand').value,
                 address: document.getElementById('modal-store-address').value,
                 category: document.getElementById('modal-store-category').value,
                 concept: document.getElementById('modal-store-concept').value,
-                hours: {
-                    mon_thu: document.getElementById('modal-store-hours-mon-thu').value,
-                    fri_sat: document.getElementById('modal-store-hours-fri-sat').value
-                },
+                hours: newHours,
                 queries: []
             };
             
@@ -353,8 +388,12 @@ function initNewStoreModal() {
                     document.getElementById('modal-store-address').value = '';
                     document.getElementById('modal-store-category').value = '';
                     document.getElementById('modal-store-concept').value = '';
-                    document.getElementById('modal-store-hours-mon-thu').value = '';
-                    document.getElementById('modal-store-hours-fri-sat').value = '';
+                    keys.forEach(k => {
+                        const hr = document.getElementById(`modal-hours-${k}`);
+                        const chk = document.getElementById(`modal-closed-${k}`);
+                        if(hr) { hr.value = ''; hr.disabled = false; }
+                        if(chk) chk.checked = false;
+                    });
                 } else {
                     alert('매장 추가 실패');
                 }

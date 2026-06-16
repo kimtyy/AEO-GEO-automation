@@ -426,12 +426,42 @@
                 <input type="text" id="modal-store-concept" class="form-control">
             </div>
             <div class="form-group">
-                <label>영업시간 (월~목)</label>
-                <input type="text" id="modal-store-hours-mon-thu" class="form-control" placeholder="예: 17:00 ~ 24:00">
-            </div>
-            <div class="form-group">
-                <label>영업시간 (금~토)</label>
-                <input type="text" id="modal-store-hours-fri-sat" class="form-control" placeholder="예: 17:00 ~ 01:00">
+                <label>영업시간</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">월</span>
+                    <input type="text" id="modal-hours-mon" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 24:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-mon" onchange="document.getElementById('modal-hours-mon').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">화</span>
+                    <input type="text" id="modal-hours-tue" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 24:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-tue" onchange="document.getElementById('modal-hours-tue').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">수</span>
+                    <input type="text" id="modal-hours-wed" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 24:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-wed" onchange="document.getElementById('modal-hours-wed').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">목</span>
+                    <input type="text" id="modal-hours-thu" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 24:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-thu" onchange="document.getElementById('modal-hours-thu').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">금</span>
+                    <input type="text" id="modal-hours-fri" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 01:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-fri" onchange="document.getElementById('modal-hours-fri').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">토</span>
+                    <input type="text" id="modal-hours-sat" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 01:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-sat" onchange="document.getElementById('modal-hours-sat').disabled = this.checked"> 휴무</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="width: 20px;">일</span>
+                    <input type="text" id="modal-hours-sun" class="form-control" style="flex: 1;" placeholder="예: 17:00 ~ 24:00">
+                    <label style="display:flex; align-items:center; gap:3px;"><input type="checkbox" id="modal-closed-sun" onchange="document.getElementById('modal-hours-sun').disabled = this.checked"> 휴무</label>
+                </div>
             </div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn btn-secondary" id="btn-cancel-modal" style="flex: 1;">취소</button>
