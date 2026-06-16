@@ -139,13 +139,27 @@ function loadStoreData() {
 
         const settingsStoreInfo = document.getElementById('settings-store-info');
         if (settingsStoreInfo) {
+            let hoursStr = '';
+            if (currentStore.hours && typeof currentStore.hours === 'object') {
+                hoursStr = `월~목: ${currentStore.hours.mon_thu || ''}, 금~토: ${currentStore.hours.fri_sat || ''}`;
+            } else if (typeof currentStore.hours === 'string') {
+                try {
+                    const parsed = JSON.parse(currentStore.hours);
+                    hoursStr = `월~목: ${parsed.mon_thu || ''}, 금~토: ${parsed.fri_sat || ''}`;
+                } catch(e) {
+                    hoursStr = currentStore.hours || '';
+                }
+            } else {
+                hoursStr = currentStore.hours || '';
+            }
+            
             settingsStoreInfo.innerHTML = `
                 <div style="font-weight: bold;">매장명</div><div id="info-store-name">${currentStore.store_name || ''}</div>
                 <div style="font-weight: bold;">브랜드</div><div id="info-brand">${currentStore.brand || ''}</div>
                 <div style="font-weight: bold;">주소</div><div id="info-address">${currentStore.address || ''}</div>
                 <div style="font-weight: bold;">업종</div><div id="info-category">${currentStore.category || ''}</div>
                 <div style="font-weight: bold;">컨셉</div><div id="info-concept">${currentStore.concept || ''}</div>
-                <div style="font-weight: bold;">영업시간</div><div id="info-hours">${currentStore.hours || ''}</div>
+                <div style="font-weight: bold;">영업시간</div><div id="info-hours">${hoursStr}</div>
             `;
         }
 
@@ -193,13 +207,31 @@ function initSettingsEdit() {
             
             if (isEditing) {
                 btnEdit.textContent = '취소';
+                let mon_thu = '';
+                let fri_sat = '';
+                if (currentStore.hours && typeof currentStore.hours === 'object') {
+                    mon_thu = currentStore.hours.mon_thu || '';
+                    fri_sat = currentStore.hours.fri_sat || '';
+                } else if (typeof currentStore.hours === 'string') {
+                    try {
+                        const parsed = JSON.parse(currentStore.hours);
+                        mon_thu = parsed.mon_thu || '';
+                        fri_sat = parsed.fri_sat || '';
+                    } catch(e) {
+                        mon_thu = currentStore.hours || '';
+                    }
+                } else {
+                    mon_thu = currentStore.hours || '';
+                }
+                
                 container.innerHTML = `
                     <div style="font-weight: bold;">매장명</div><div><input type="text" id="edit-store-name" class="form-control" value="${currentStore.store_name || ''}"></div>
                     <div style="font-weight: bold;">브랜드</div><div><input type="text" id="edit-brand" class="form-control" value="${currentStore.brand || ''}"></div>
                     <div style="font-weight: bold;">주소</div><div><input type="text" id="edit-address" class="form-control" value="${currentStore.address || ''}"></div>
                     <div style="font-weight: bold;">업종</div><div><input type="text" id="edit-category" class="form-control" value="${currentStore.category || ''}"></div>
                     <div style="font-weight: bold;">컨셉</div><div><input type="text" id="edit-concept" class="form-control" value="${currentStore.concept || ''}"></div>
-                    <div style="font-weight: bold;">영업시간</div><div><input type="text" id="edit-hours" class="form-control" value="${currentStore.hours || ''}"></div>
+                    <div style="font-weight: bold;">영업시간 (월~목)</div><div><input type="text" id="edit-hours-mon-thu" class="form-control" value="${mon_thu}"></div>
+                    <div style="font-weight: bold;">영업시간 (금~토)</div><div><input type="text" id="edit-hours-fri-sat" class="form-control" value="${fri_sat}"></div>
                 `;
             } else {
                 btnEdit.textContent = '수정';
@@ -240,7 +272,10 @@ function initSettingsEdit() {
                 updatedData.address = document.getElementById('edit-address').value;
                 updatedData.category = document.getElementById('edit-category').value;
                 updatedData.concept = document.getElementById('edit-concept').value;
-                updatedData.hours = document.getElementById('edit-hours').value;
+                updatedData.hours = {
+                    mon_thu: document.getElementById('edit-hours-mon-thu').value,
+                    fri_sat: document.getElementById('edit-hours-fri-sat').value
+                };
             }
             
             try {
@@ -292,7 +327,10 @@ function initNewStoreModal() {
                 address: document.getElementById('modal-store-address').value,
                 category: document.getElementById('modal-store-category').value,
                 concept: document.getElementById('modal-store-concept').value,
-                hours: document.getElementById('modal-store-hours').value,
+                hours: {
+                    mon_thu: document.getElementById('modal-store-hours-mon-thu').value,
+                    fri_sat: document.getElementById('modal-store-hours-fri-sat').value
+                },
                 queries: []
             };
             
@@ -315,7 +353,8 @@ function initNewStoreModal() {
                     document.getElementById('modal-store-address').value = '';
                     document.getElementById('modal-store-category').value = '';
                     document.getElementById('modal-store-concept').value = '';
-                    document.getElementById('modal-store-hours').value = '';
+                    document.getElementById('modal-store-hours-mon-thu').value = '';
+                    document.getElementById('modal-store-hours-fri-sat').value = '';
                 } else {
                     alert('매장 추가 실패');
                 }
