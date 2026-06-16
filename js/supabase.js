@@ -1,7 +1,7 @@
 // js/supabase.js - Supabase 연동 및 데이터베이스 작업
 
 // Supabase 클라이언트 초기화 (CDN 방식)
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const supabaseService = {
     /**
@@ -10,7 +10,7 @@ const supabaseService = {
      */
     async getStore(storeId) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('stores')
                 .select('*')
                 .eq('id', storeId)
@@ -28,7 +28,7 @@ const supabaseService = {
      */
     async getAllStores() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('stores')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -46,7 +46,7 @@ const supabaseService = {
      */
     async createStore(data) {
         try {
-            const { data: result, error } = await supabase
+            const { data: result, error } = await supabaseClient
                 .from('stores')
                 .insert([data])
                 .select()
@@ -67,7 +67,7 @@ const supabaseService = {
      */
     async updateStore(storeId, data) {
         try {
-            const { data: result, error } = await supabase
+            const { data: result, error } = await supabaseClient
                 .from('stores')
                 .update(data)
                 .eq('id', storeId)
@@ -88,7 +88,7 @@ const supabaseService = {
      */
     async saveAnalysisResult(data) {
         try {
-            const { data: result, error } = await supabase
+            const { data: result, error } = await supabaseClient
                 .from('analysis_history')
                 .insert([data])
                 .select();
@@ -107,7 +107,7 @@ const supabaseService = {
      */
     async getAnalysisHistory(storeId) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('analysis_history')
                 .select('*')
                 .eq('store_id', storeId)
@@ -126,7 +126,7 @@ const supabaseService = {
      */
     async saveContent(data) {
         try {
-            const { data: result, error } = await supabase
+            const { data: result, error } = await supabaseClient
                 .from('contents')
                 .insert([data])
                 .select();
@@ -145,7 +145,7 @@ const supabaseService = {
      */
     async getContents(storeId) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('contents')
                 .select('*')
                 .eq('store_id', storeId)
