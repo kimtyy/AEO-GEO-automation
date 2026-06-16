@@ -535,6 +535,11 @@ function initAnalysis() {
 
             const now = new Date().toISOString();
             const tasks = [];
+            
+            function delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            let geminiDelayMs = 0;
 
             // 모든 타겟 x 질문 조합에 대해 API 호출
             for (const target of targets) {
@@ -550,17 +555,24 @@ function initAnalysis() {
                     
                     // DB 저장을 위한 query 필드용 문자열 (UI 및 집계용)
                     const queryLog = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
+                    
+                    const currentGeminiDelay = geminiDelayMs;
+                    geminiDelayMs += 2000;
+                    
                     tasks.push((async () => {
-                        const res = await Promise.all([
-                            apiService.callClaude(prompt),
-                            apiService.callChatGPT(prompt),
-                            apiService.callGemini(prompt)
-                        ]);
+                        const claudePromise = apiService.callClaude(prompt);
+                        const chatgptPromise = apiService.callChatGPT(prompt);
+                        
+                        await delay(currentGeminiDelay);
+                        const geminiRes = await apiService.callGemini(prompt);
+                        
+                        const claudeRes = await claudePromise;
+                        const chatgptRes = await chatgptPromise;
                         
                         return [
-                            { ai_name: 'Claude', query: queryLog, response: res[0].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'ChatGPT', query: queryLog, response: res[1].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'Gemini', query: queryLog, response: res[2].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
+                            { ai_name: 'Claude', query: queryLog, response: claudeRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'ChatGPT', query: queryLog, response: chatgptRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'Gemini', query: queryLog, response: geminiRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
                         ];
                     })());
                 }
