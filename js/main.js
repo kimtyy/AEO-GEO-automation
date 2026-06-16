@@ -78,23 +78,35 @@ async function refreshDashboard() {
 
 // 사이드바 네비게이션
 function initNavigation() {
-    const menuItems = document.querySelectorAll('#sidebar-menu li');
+    const menuItems = document.querySelectorAll('#sidebar-menu li, #bottom-menu li:not(.more-menu-btn), #more-menu-list li');
     const pages = document.querySelectorAll('.page');
     const pageTitle = document.getElementById('page-title');
 
     menuItems.forEach(item => {
         item.addEventListener('click', () => {
+            const targetId = item.getAttribute('data-target');
+            if (!targetId) return;
+
             // Update Active Menu
             menuItems.forEach(m => m.classList.remove('active'));
-            item.classList.add('active');
+            // 만약 동일한 targetId를 가진 메뉴가 있다면 모두 active 처리
+            menuItems.forEach(m => {
+                if (m.getAttribute('data-target') === targetId) {
+                    m.classList.add('active');
+                }
+            });
 
             // Update Active Page
-            const targetId = item.getAttribute('data-target');
             pages.forEach(p => p.classList.remove('active'));
             document.getElementById(targetId).classList.add('active');
 
+            // 모바일 '더보기' 메뉴 닫기
+            const moreMenu = document.getElementById('more-menu-overlay');
+            if (moreMenu) moreMenu.style.display = 'none';
+
             // Update Title
-            pageTitle.textContent = item.textContent;
+            const titleText = item.querySelector('.label') ? item.querySelector('.label').textContent : item.textContent;
+            pageTitle.textContent = titleText;
             
             // Re-render charts if dashboard is shown (fixes Chart.js resize issue)
             if (targetId === 'page-dashboard') {
