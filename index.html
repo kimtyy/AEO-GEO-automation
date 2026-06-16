@@ -182,6 +182,12 @@
                             <input type="password" id="gemini-key" placeholder="AIzaSy...">
                         </div>
                         <button class="btn btn-primary" id="btn-analyze">3개 AI 동시 진단 분석 실행</button>
+                        <div id="analysis-progress" style="display: none; margin-top: 15px;">
+                            <div style="background: #e0e0e0; border-radius: 4px; height: 10px; overflow: hidden;">
+                                <div id="progress-bar" style="background: #185FA5; width: 0%; height: 100%; transition: width 0.5s;"></div>
+                            </div>
+                            <p id="progress-text" style="font-size: 12px; text-align: center; margin-top: 5px;">0% 완료</p>
+                        </div>
                     </div>
 
                     <div class="analysis-results" id="analysis-results" style="display: none;">
@@ -190,31 +196,196 @@
                             <div class="card result-card">
                                 <div class="ai-name">Claude</div>
                                 <div class="status success">양호</div>
-                                <p class="diagnosis">"가평 현리 단체 회식" 키워드에 대해 가장 높은 추천율을 보임.</p>
+                                <p class="diagnosis" id="claude-response">"가평 현리 단체 회식" 키워드에 대해 가장 높은 추천율을 보임.</p>
+                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                    <strong>매장 언급 질문:</strong> <span id="claude-mention">가평 현리 단체 회식 장소 추천해줘</span>
+                                </div>
                                 <div class="prescription">현재 상태 유지 및 긍정 리뷰 지속 생성</div>
                             </div>
                             <div class="card result-card">
                                 <div class="ai-name">ChatGPT</div>
                                 <div class="status warning">주의</div>
-                                <p class="diagnosis">영업시간 및 주차 정보에 대한 환각(Hallucination) 현상 일부 발견.</p>
+                                <p class="diagnosis" id="chatgpt-response">영업시간 및 주차 정보에 대한 환각(Hallucination) 현상 일부 발견.</p>
+                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                    <strong>매장 언급 질문:</strong> <span id="chatgpt-mention">가평 현리 밥술집 어디 있어?</span>
+                                </div>
                                 <div class="prescription">공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검</div>
                             </div>
                             <div class="card result-card">
                                 <div class="ai-name">Gemini</div>
                                 <div class="status">보통</div>
-                                <p class="diagnosis">신메뉴(눈꽃빙수)에 대한 인지도가 낮음.</p>
+                                <p class="diagnosis" id="gemini-response">신메뉴(눈꽃빙수)에 대한 인지도가 낮음.</p>
+                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                    <strong>매장 언급 질문:</strong> <span id="gemini-mention">없음</span>
+                                </div>
                                 <div class="prescription">블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공</div>
                             </div>
+                        </div>
+                        <div class="card" style="margin-top: 20px;">
+                            <h4>AI 진단 처방 (Claude 생성)</h4>
+                            <textarea id="ai-prescription-text" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;" rows="4" readonly></textarea>
                         </div>
                     </div>
                 </section>
                 
-                <!-- Other Pages (Placeholders) -->
-                <section id="page-content" class="page"><div class="card">콘텐츠 관리 페이지입니다.</div></section>
-                <section id="page-monitoring" class="page"><div class="card">모니터링 페이지입니다.</div></section>
-                <section id="page-competitor" class="page"><div class="card">경쟁사 분석 페이지입니다.</div></section>
-                <section id="page-report" class="page"><div class="card">리포트 페이지입니다.</div></section>
-                <section id="page-settings" class="page"><div class="card">설정 페이지입니다.</div></section>
+                <!-- Content Management Page -->
+                <section id="page-content" class="page">
+                    <h3 class="section-title">콘텐츠 자동 생성</h3>
+                    <div class="content-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+                        <div class="card">
+                            <h4>FAQ형</h4>
+                            <p>고객들의 자주 묻는 질문을 바탕으로 콘텐츠를 생성합니다.</p>
+                            <button class="btn btn-secondary btn-generate-content" data-type="FAQ">자동 생성</button>
+                        </div>
+                        <div class="card">
+                            <h4>추천형</h4>
+                            <p>주변 명소나 맛집 코스와 연계된 추천글을 생성합니다.</p>
+                            <button class="btn btn-secondary btn-generate-content" data-type="추천">자동 생성</button>
+                        </div>
+                        <div class="card">
+                            <h4>보도자료형</h4>
+                            <p>공식적인 소식이나 신메뉴 출시를 알리는 보도자료를 생성합니다.</p>
+                            <button class="btn btn-secondary btn-generate-content" data-type="보도자료">자동 생성</button>
+                        </div>
+                        <div class="card">
+                            <h4>SNS형</h4>
+                            <p>인스타그램 등 SNS에 적합한 짧고 임팩트 있는 콘텐츠를 생성합니다.</p>
+                            <button class="btn btn-secondary btn-generate-content" data-type="SNS">자동 생성</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h4>생성된 콘텐츠 목록</h4>
+                        <table class="data-table" id="content-table">
+                            <thead>
+                                <tr>
+                                    <th>생성일</th>
+                                    <th>유형</th>
+                                    <th>내용 미리보기</th>
+                                    <th>상태</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loaded from Supabase contents or dummy data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Monitoring Page -->
+                <section id="page-monitoring" class="page">
+                    <div class="card">
+                        <h3>변화 이력</h3>
+                        <table class="data-table" id="monitoring-table">
+                            <thead>
+                                <tr>
+                                    <th>날짜</th>
+                                    <th>AI 가시성 점수</th>
+                                    <th>AI 언급률</th>
+                                    <th>주요 변화 내용</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loaded from Supabase analysis_history -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Competitor Analysis Page -->
+                <section id="page-competitor" class="page">
+                    <div class="card">
+                        <h3>경쟁사 비교</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>업체명</th>
+                                    <th>가시성 점수</th>
+                                    <th>ChatGPT</th>
+                                    <th>Claude</th>
+                                    <th>Gemini</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>설맥 가평현리점 (자사)</td>
+                                    <td>85</td>
+                                    <td>상</td>
+                                    <td>중</td>
+                                    <td>상</td>
+                                </tr>
+                                <tr>
+                                    <td>A 호프</td>
+                                    <td>60</td>
+                                    <td>중</td>
+                                    <td>하</td>
+                                    <td>중</td>
+                                </tr>
+                                <tr>
+                                    <td>B 맥주</td>
+                                    <td>45</td>
+                                    <td>하</td>
+                                    <td>하</td>
+                                    <td>하</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Report Page -->
+                <section id="page-report" class="page">
+                    <div class="card" style="margin-bottom: 20px;">
+                        <h3>월간 리포트 요약</h3>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+                                <div style="font-size: 12px; color: #666;">분석 기간</div>
+                                <div style="font-weight: bold; margin-top: 5px;">26.05.01 ~ 05.31</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
+                                <div style="font-size: 12px; color: #666;">AI 가시성 점수</div>
+                                <div style="font-weight: bold; margin-top: 5px; color: #185FA5;">85점</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
+                                <div style="font-size: 12px; color: #666;">AI 언급률</div>
+                                <div style="font-weight: bold; margin-top: 5px; color: #3B6D11;">72%</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
+                                <div style="font-size: 12px; color: #666;">배포 콘텐츠 수</div>
+                                <div style="font-weight: bold; margin-top: 5px;">12건</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
+                                <div style="font-size: 12px; color: #666;">다음 측정일</div>
+                                <div style="font-weight: bold; margin-top: 5px; color: #e74c3c;">D-3</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-generate-report">리포트 자동 생성</button>
+                    <div id="report-result" style="margin-top: 20px; display: none;" class="card">
+                        <h4>리포트 생성 완료</h4>
+                        <p>성공적으로 월간 리포트가 생성되어 이메일로 발송되었습니다.</p>
+                    </div>
+                </section>
+
+                <!-- Settings Page -->
+                <section id="page-settings" class="page">
+                    <div class="card" style="margin-bottom: 20px;">
+                        <h3>업체 정보</h3>
+                        <div id="settings-store-info" style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; margin-top: 15px;">
+                            <!-- Loaded via JS from STORE_DATA -->
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>모니터링 질문 리스트</h3>
+                        <ul id="settings-queries-list" style="margin-top: 15px; padding-left: 20px;">
+                            <!-- Loaded via JS from STORE_DATA -->
+                        </ul>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <input type="text" id="new-query-input" class="form-control" placeholder="새 질문 추가" style="flex: 1; padding: 8px;">
+                            <button class="btn btn-secondary" id="btn-add-query">추가</button>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top: 20px;" id="btn-save-settings">설정 저장</button>
+                    </div>
+                </section>
             </div>
         </main>
     </div>

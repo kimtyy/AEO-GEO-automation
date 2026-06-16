@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStoreData();
     chartService.initCharts();
     initAnalysis();
+    initContentGeneration();
+    initReportGeneration();
+    loadMonitoringHistory();
 });
 
 // 사이드바 네비게이션
@@ -91,6 +94,29 @@ function loadStoreData() {
                 ${STORE_DATA.address}
             `;
         }
+
+        const settingsStoreInfo = document.getElementById('settings-store-info');
+        if (settingsStoreInfo) {
+            settingsStoreInfo.innerHTML = `
+                <div style="font-weight: bold;">매장명</div><div>${STORE_DATA.store_name}</div>
+                <div style="font-weight: bold;">브랜드</div><div>${STORE_DATA.brand}</div>
+                <div style="font-weight: bold;">주소</div><div>${STORE_DATA.address}</div>
+                <div style="font-weight: bold;">업종</div><div>${STORE_DATA.category}</div>
+                <div style="font-weight: bold;">컨셉</div><div>${STORE_DATA.concept}</div>
+                <div style="font-weight: bold;">크기</div><div>${STORE_DATA.size}</div>
+                <div style="font-weight: bold;">주차</div><div>${STORE_DATA.parking ? "가능" : "불가"}</div>
+            `;
+        }
+
+        const settingsQueriesList = document.getElementById('settings-queries-list');
+        if (settingsQueriesList) {
+            settingsQueriesList.innerHTML = STORE_DATA.queries.map(q => `
+                <li style="margin-bottom: 5px; display: flex; justify-content: space-between;">
+                    <span>${q}</span>
+                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px; border:none; background: #e74c3c; color: white; border-radius:3px;">삭제</button>
+                </li>
+            `).join('');
+        }
     } catch (error) {
         console.error('Failed to load store data:', error);
     }
@@ -100,6 +126,9 @@ function loadStoreData() {
 function initAnalysis() {
     const btnAnalyze = document.getElementById('btn-analyze');
     const analysisResults = document.getElementById('analysis-results');
+    const analysisProgress = document.getElementById('analysis-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
 
     if (!btnAnalyze) return;
 
@@ -113,8 +142,23 @@ function initAnalysis() {
         btnAnalyze.textContent = "분석 중...";
         btnAnalyze.disabled = true;
         analysisResults.style.display = 'none';
+        
+        // 프로그레스 바 표시
+        analysisProgress.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0% 완료';
 
         try {
+            // 프로그레스 바 애니메이션 시뮬레이션
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 10;
+                if (progress <= 90) {
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}% 완료`;
+                }
+            }, 200);
+
             // 병렬 API 호출 시뮬레이션
             const prompt = "현재 매장 데이터를 바탕으로 AI 검색 엔진 노출도를 분석해줘.";
             const results = await Promise.all([
@@ -122,6 +166,10 @@ function initAnalysis() {
                 apiService.callChatGPT(chatgptKey, prompt),
                 apiService.callGemini(geminiKey, prompt)
             ]);
+
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressText.textContent = '100% 완료';
 
             console.log("Analysis Results:", results);
             
@@ -134,15 +182,121 @@ function initAnalysis() {
                 created_at: new Date().toISOString()
             });
             
-            // 결과 표시 (UI 업데이트 로직은 HTML에 미리 작성된 상태로 보이기만 처리)
-            analysisResults.style.display = 'block';
+            // 결과 표시 (UI 업데이트)
+            setTimeout(() => {
+                analysisProgress.style.display = 'none';
+                analysisResults.style.display = 'block';
+                
+                document.getElementById('claude-response').textContent = results[0].data;
+                document.getElementById('chatgpt-response').textContent = results[1].data;
+                document.getElementById('gemini-response').textContent = results[2].data;
+                
+                // 가상 처방
+                document.getElementById('ai-prescription-text').value = `[진단 요약]\nClaude: ${results[0].data}\nChatGPT: ${results[1].data}\nGemini: ${results[2].data}\n\n[추천 액션]\n1. 신메뉴 관련 포스팅 강화\n2. 네이버 플레이스 주차 정보 업데이트`;
+            }, 500);
 
         } catch (error) {
             alert('분석 중 오류가 발생했습니다.');
             console.error(error);
+            analysisProgress.style.display = 'none';
         } finally {
             btnAnalyze.textContent = originalText;
             btnAnalyze.disabled = false;
         }
     });
 }
+
+function initContentGeneration() {
+    const btns = document.querySelectorAll('.btn-generate-content');
+    const tableBody = document.querySelector('#content-table tbody');
+    
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.getAttribute('data-type');
+            const originalText = btn.textContent;
+            btn.textContent = '생성 중...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const tr = document.createElement('tr');
+                const date = new Date().toLocaleDateString();
+                tr.innerHTML = `
+                    <td>${date}</td>
+                    <td>${type}</td>
+                    <td>${STORE_DATA.store_name} ${type} 콘텐츠입니다...</td>
+                    <td><span style="color: #3B6D11; font-weight: bold;">생성 완료</span></td>
+                `;
+                tableBody.prepend(tr);
+                
+                btn.textContent = originalText;
+                btn.disabled = false;
+                
+                // Save to supabase
+                supabaseService.saveContent({
+                    store_id: STORE_DATA.store_name,
+                    type: type,
+                    preview: `${STORE_DATA.store_name} ${type} 콘텐츠입니다...`,
+                    status: '완료',
+                    created_at: new Date().toISOString()
+                });
+            }, 1000);
+        });
+    });
+}
+
+function initReportGeneration() {
+    const btn = document.getElementById('btn-generate-report');
+    if (!btn) return;
+    
+    btn.addEventListener('click', () => {
+        const originalText = btn.textContent;
+        btn.textContent = '리포트 생성 중...';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            document.getElementById('report-result').style.display = 'block';
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }, 1500);
+    });
+}
+
+async function loadMonitoringHistory() {
+    const tableBody = document.querySelector('#monitoring-table tbody');
+    if (!tableBody) return;
+
+    try {
+        const history = await supabaseService.getAnalysisHistory(STORE_DATA.store_name);
+        if (history && history.length > 0) {
+            tableBody.innerHTML = history.map(h => {
+                const date = new Date(h.created_at).toLocaleDateString();
+                return `
+                    <tr>
+                        <td>${date}</td>
+                        <td>85</td>
+                        <td>72%</td>
+                        <td>최근 진단 기록 반영됨</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td>2026.05.15</td>
+                    <td>85</td>
+                    <td>72%</td>
+                    <td>신메뉴 키워드 반영</td>
+                </tr>
+                <tr>
+                    <td>2026.05.01</td>
+                    <td>82</td>
+                    <td>68%</td>
+                    <td>주차 정보 업데이트 반영</td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load history:', error);
+    }
+}
+
