@@ -24,6 +24,65 @@ const supabaseService = {
     },
 
     /**
+     * 모든 매장 목록 가져오기
+     */
+    async getAllStores() {
+        try {
+            const { data, error } = await supabase
+                .from('stores')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching all stores:', error);
+            return [];
+        }
+    },
+
+    /**
+     * 새 매장 추가 (INSERT)
+     * @param {Object} data 
+     */
+    async createStore(data) {
+        try {
+            const { data: result, error } = await supabase
+                .from('stores')
+                .insert([data])
+                .select()
+                .single();
+            if (error) throw error;
+            console.log('Store created successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Error creating store:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 매장 정보 수정 (UPDATE)
+     * @param {string} storeId 
+     * @param {Object} data 
+     */
+    async updateStore(storeId, data) {
+        try {
+            const { data: result, error } = await supabase
+                .from('stores')
+                .update(data)
+                .eq('id', storeId)
+                .select()
+                .single();
+            if (error) throw error;
+            console.log('Store updated successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Error updating store:', error);
+            return null;
+        }
+    },
+
+    /**
      * 분석 결과 저장
      * @param {Object} data 
      */

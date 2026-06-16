@@ -1,39 +1,79 @@
 // js/main.js - 네비게이션, 탭 전환, 데이터 로드, 분석 실행
 
-const STORE_DATA = {
-  "store_name": "설맥 가평현리점",
-  "brand": "SOL MAC",
-  "address": "경기 가평군 조종면 조종희망로 16-19",
-  "category": "호프/맥주집",
-  "concept": "눈꽃맥주 전문점, 밥술집",
-  "size": "70평",
-  "rooms": ["30인 단체룸", "12인 단체룸"],
-  "parking": true,
-  "hours": {
-    "mon_thu": "17:00 ~ 24:00",
-    "fri_sat": "17:00 ~ 01:00"
-  },
-  "menu": ["설맥치킨", "눈꽃치킨", "아구찜", "코다리찜", "냉면", "쌀국수", "골뱅이무침", "눈꽃빙수"],
-  "keywords": ["가평 현리 단체 회식", "현리 밥술집", "현리 맥주집", "맹호부대 근처 회식"],
-  "queries": [
-    "가평 현리 단체 회식 장소 추천해줘",
-    "가평 현리 밥술집 어디 있어?",
-    "현리에서 늦게까지 하는 술집 알려줘",
-    "가평 현리 맛집 추천해줘",
-    "맹호부대 근처 단체 회식 장소"
-  ]
-};
+let currentStore = null;
+let storesList = [];
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initNavigation();
     initTabs();
-    loadStoreData();
     chartService.initCharts();
     initAnalysis();
     initContentGeneration();
     initReportGeneration();
-    loadMonitoringHistory();
+    
+    await initStores();
+    
+    initSettingsEdit();
+    initNewStoreModal();
 });
+
+async function initStores() {
+    const selector = document.getElementById('store-selector');
+    storesList = await supabaseService.getAllStores();
+    
+    if (storesList && storesList.length > 0) {
+        currentStore = storesList[0];
+    }
+    
+    renderStoreSelector();
+    
+    selector.addEventListener('change', (e) => {
+        if (e.target.value === 'add_new') {
+            document.getElementById('new-store-modal').style.display = 'block';
+            selector.value = currentStore ? currentStore.id : '';
+            return;
+        }
+        currentStore = storesList.find(s => s.id === e.target.value);
+        refreshDashboard();
+    });
+    
+    refreshDashboard();
+}
+
+function renderStoreSelector() {
+    const selector = document.getElementById('store-selector');
+    if (!selector) return;
+    
+    selector.innerHTML = '';
+    
+    if (storesList && storesList.length > 0) {
+        storesList.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store.id;
+            option.textContent = store.store_name || store.brand;
+            if (currentStore && currentStore.id === store.id) {
+                option.selected = true;
+            }
+            selector.appendChild(option);
+        });
+    } else {
+        const option = document.createElement('option');
+        option.value = "";
+        option.disabled = true;
+        option.textContent = "매장이 없습니다";
+        selector.appendChild(option);
+    }
+    
+    const addOption = document.createElement('option');
+    addOption.value = 'add_new';
+    addOption.textContent = '+ 새 매장 추가';
+    selector.appendChild(addOption);
+}
+
+function refreshDashboard() {
+    loadStoreData();
+    loadMonitoringHistory();
+}
 
 // 사이드바 네비게이션
 function initNavigation() {
@@ -83,42 +123,210 @@ function initTabs() {
     });
 }
 
-// STORE_DATA 변수 데이터 로드
+// currentStore 변수 데이터 로드
 function loadStoreData() {
     try {
+        if (!currentStore) return;
+        
         const storeHeaderInfo = document.getElementById('store-header-info');
         if (storeHeaderInfo) {
             storeHeaderInfo.innerHTML = `
-                <strong>${STORE_DATA.store_name}</strong> | 
-                ${STORE_DATA.category} | 
-                ${STORE_DATA.address}
+                <strong>${currentStore.store_name || ''}</strong> | 
+                ${currentStore.category || ''} | 
+                ${currentStore.address || ''}
             `;
         }
 
         const settingsStoreInfo = document.getElementById('settings-store-info');
         if (settingsStoreInfo) {
             settingsStoreInfo.innerHTML = `
-                <div style="font-weight: bold;">매장명</div><div>${STORE_DATA.store_name}</div>
-                <div style="font-weight: bold;">브랜드</div><div>${STORE_DATA.brand}</div>
-                <div style="font-weight: bold;">주소</div><div>${STORE_DATA.address}</div>
-                <div style="font-weight: bold;">업종</div><div>${STORE_DATA.category}</div>
-                <div style="font-weight: bold;">컨셉</div><div>${STORE_DATA.concept}</div>
-                <div style="font-weight: bold;">크기</div><div>${STORE_DATA.size}</div>
-                <div style="font-weight: bold;">주차</div><div>${STORE_DATA.parking ? "가능" : "불가"}</div>
+                <div style="font-weight: bold;">매장명</div><div id="info-store-name">${currentStore.store_name || ''}</div>
+                <div style="font-weight: bold;">브랜드</div><div id="info-brand">${currentStore.brand || ''}</div>
+                <div style="font-weight: bold;">주소</div><div id="info-address">${currentStore.address || ''}</div>
+                <div style="font-weight: bold;">업종</div><div id="info-category">${currentStore.category || ''}</div>
+                <div style="font-weight: bold;">컨셉</div><div id="info-concept">${currentStore.concept || ''}</div>
+                <div style="font-weight: bold;">영업시간</div><div id="info-hours">${currentStore.hours || ''}</div>
             `;
         }
 
         const settingsQueriesList = document.getElementById('settings-queries-list');
         if (settingsQueriesList) {
-            settingsQueriesList.innerHTML = STORE_DATA.queries.map(q => `
+            let queries = currentStore.queries || [];
+            if (typeof queries === 'string') {
+                try { queries = JSON.parse(queries); } catch(e) { queries = []; }
+            }
+            settingsQueriesList.innerHTML = queries.map((q, index) => `
                 <li style="margin-bottom: 5px; display: flex; justify-content: space-between;">
                     <span>${q}</span>
-                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px; border:none; background: #e74c3c; color: white; border-radius:3px;">삭제</button>
+                    <button class="btn btn-secondary btn-delete-query" data-index="${index}" style="padding: 2px 8px; font-size: 12px; border:none; background: #e74c3c; color: white; border-radius:3px;">삭제</button>
                 </li>
             `).join('');
+            
+            document.querySelectorAll('.btn-delete-query').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.target.getAttribute('data-index');
+                    let currentQueries = currentStore.queries || [];
+                    if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
+                    currentQueries.splice(idx, 1);
+                    currentStore.queries = currentQueries;
+                    loadStoreData();
+                });
+            });
         }
     } catch (error) {
         console.error('Failed to load store data:', error);
+    }
+}
+
+function initSettingsEdit() {
+    const btnEdit = document.getElementById('btn-edit-store-info');
+    const btnSave = document.getElementById('btn-save-settings');
+    const btnAddQuery = document.getElementById('btn-add-query');
+    const queryInput = document.getElementById('new-query-input');
+    
+    let isEditing = false;
+    
+    if (btnEdit) {
+        btnEdit.addEventListener('click', () => {
+            isEditing = !isEditing;
+            const container = document.getElementById('settings-store-info');
+            
+            if (isEditing) {
+                btnEdit.textContent = '취소';
+                container.innerHTML = `
+                    <div style="font-weight: bold;">매장명</div><div><input type="text" id="edit-store-name" class="form-control" value="${currentStore.store_name || ''}"></div>
+                    <div style="font-weight: bold;">브랜드</div><div><input type="text" id="edit-brand" class="form-control" value="${currentStore.brand || ''}"></div>
+                    <div style="font-weight: bold;">주소</div><div><input type="text" id="edit-address" class="form-control" value="${currentStore.address || ''}"></div>
+                    <div style="font-weight: bold;">업종</div><div><input type="text" id="edit-category" class="form-control" value="${currentStore.category || ''}"></div>
+                    <div style="font-weight: bold;">컨셉</div><div><input type="text" id="edit-concept" class="form-control" value="${currentStore.concept || ''}"></div>
+                    <div style="font-weight: bold;">영업시간</div><div><input type="text" id="edit-hours" class="form-control" value="${currentStore.hours || ''}"></div>
+                `;
+            } else {
+                btnEdit.textContent = '수정';
+                loadStoreData(); // discard changes
+            }
+        });
+    }
+    
+    if (btnAddQuery) {
+        btnAddQuery.addEventListener('click', () => {
+            const val = queryInput.value.trim();
+            if (val && currentStore) {
+                let queries = currentStore.queries || [];
+                if (typeof queries === 'string') queries = JSON.parse(queries);
+                queries.push(val);
+                currentStore.queries = queries;
+                queryInput.value = '';
+                loadStoreData();
+            }
+        });
+    }
+    
+    if (btnSave) {
+        btnSave.addEventListener('click', async () => {
+            if (!currentStore) return;
+            
+            const originalText = btnSave.textContent;
+            btnSave.textContent = '저장 중...';
+            btnSave.disabled = true;
+            
+            let updatedData = {
+                queries: currentStore.queries
+            };
+            
+            if (isEditing) {
+                updatedData.store_name = document.getElementById('edit-store-name').value;
+                updatedData.brand = document.getElementById('edit-brand').value;
+                updatedData.address = document.getElementById('edit-address').value;
+                updatedData.category = document.getElementById('edit-category').value;
+                updatedData.concept = document.getElementById('edit-concept').value;
+                updatedData.hours = document.getElementById('edit-hours').value;
+            }
+            
+            try {
+                const res = await supabaseService.updateStore(currentStore.id, updatedData);
+                if (res) {
+                    currentStore = { ...currentStore, ...updatedData };
+                    alert('설정이 저장되었습니다.');
+                    if (isEditing) {
+                        isEditing = false;
+                        btnEdit.textContent = '수정';
+                    }
+                    storesList = await supabaseService.getAllStores();
+                    renderStoreSelector();
+                    loadStoreData();
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('오류가 발생했습니다.');
+            } finally {
+                btnSave.textContent = originalText;
+                btnSave.disabled = false;
+            }
+        });
+    }
+}
+
+function initNewStoreModal() {
+    const modal = document.getElementById('new-store-modal');
+    const btnClose = document.getElementById('btn-close-modal');
+    const btnCancel = document.getElementById('btn-cancel-modal');
+    const btnSave = document.getElementById('btn-save-new-store');
+    
+    const closeModal = () => {
+        modal.style.display = 'none';
+        const selector = document.getElementById('store-selector');
+        selector.value = currentStore ? currentStore.id : '';
+    };
+    
+    if(btnClose) btnClose.addEventListener('click', closeModal);
+    if(btnCancel) btnCancel.addEventListener('click', closeModal);
+    
+    if(btnSave) {
+        btnSave.addEventListener('click', async () => {
+            const data = {
+                store_name: document.getElementById('modal-store-name').value,
+                brand: document.getElementById('modal-store-brand').value,
+                address: document.getElementById('modal-store-address').value,
+                category: document.getElementById('modal-store-category').value,
+                concept: document.getElementById('modal-store-concept').value,
+                hours: document.getElementById('modal-store-hours').value,
+                queries: []
+            };
+            
+            const originalText = btnSave.textContent;
+            btnSave.textContent = '저장 중...';
+            btnSave.disabled = true;
+            
+            try {
+                const newStore = await supabaseService.createStore(data);
+                if (newStore) {
+                    alert('매장이 추가되었습니다.');
+                    storesList = await supabaseService.getAllStores();
+                    currentStore = newStore;
+                    renderStoreSelector();
+                    refreshDashboard();
+                    modal.style.display = 'none';
+                    // clear modal
+                    document.getElementById('modal-store-name').value = '';
+                    document.getElementById('modal-store-brand').value = '';
+                    document.getElementById('modal-store-address').value = '';
+                    document.getElementById('modal-store-category').value = '';
+                    document.getElementById('modal-store-concept').value = '';
+                    document.getElementById('modal-store-hours').value = '';
+                } else {
+                    alert('매장 추가 실패');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('오류 발생');
+            } finally {
+                btnSave.textContent = originalText;
+                btnSave.disabled = false;
+            }
+        });
     }
 }
 
@@ -174,13 +382,15 @@ function initAnalysis() {
             console.log("Analysis Results:", results);
             
             // Supabase에 분석 결과 자동 저장
-            await supabaseService.saveAnalysisResult({
-                store_id: STORE_DATA.store_name,
-                claude_result: results[0],
-                chatgpt_result: results[1],
-                gemini_result: results[2],
-                created_at: new Date().toISOString()
-            });
+            if(currentStore) {
+                await supabaseService.saveAnalysisResult({
+                    store_id: currentStore.id,
+                    claude_result: results[0],
+                    chatgpt_result: results[1],
+                    gemini_result: results[2],
+                    created_at: new Date().toISOString()
+                });
+            }
             
             // 결과 표시 (UI 업데이트)
             setTimeout(() => {
@@ -232,13 +442,15 @@ function initContentGeneration() {
                 btn.disabled = false;
                 
                 // Save to supabase
-                supabaseService.saveContent({
-                    store_id: STORE_DATA.store_name,
-                    type: type,
-                    preview: `${STORE_DATA.store_name} ${type} 콘텐츠입니다...`,
-                    status: '완료',
-                    created_at: new Date().toISOString()
-                });
+                if(currentStore) {
+                    supabaseService.saveContent({
+                        store_id: currentStore.id,
+                        type: type,
+                        preview: `${currentStore.store_name || currentStore.brand} ${type} 콘텐츠입니다...`,
+                        status: '완료',
+                        created_at: new Date().toISOString()
+                    });
+                }
             }, 1000);
         });
     });
@@ -266,7 +478,8 @@ async function loadMonitoringHistory() {
     if (!tableBody) return;
 
     try {
-        const history = await supabaseService.getAnalysisHistory(STORE_DATA.store_name);
+        if(!currentStore) return;
+        const history = await supabaseService.getAnalysisHistory(currentStore.id);
         if (history && history.length > 0) {
             tableBody.innerHTML = history.map(h => {
                 const date = new Date(h.created_at).toLocaleDateString();
