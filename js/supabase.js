@@ -157,5 +157,57 @@ const supabaseService = {
             console.error('Error fetching contents:', error);
             return [];
         }
+    },
+
+    /**
+     * 경쟁사 목록 가져오기
+     */
+    async getCompetitors(storeId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('competitors')
+                .select('*')
+                .eq('store_id', storeId)
+                .order('created_at', { ascending: true });
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching competitors:', error);
+            return [];
+        }
+    },
+
+    /**
+     * 경쟁사 추가
+     */
+    async addCompetitor(storeId, name) {
+        try {
+            const { data: result, error } = await supabaseClient
+                .from('competitors')
+                .insert([{ store_id: storeId, competitor_name: name }])
+                .select();
+            if (error) throw error;
+            return result;
+        } catch (error) {
+            console.error('Error adding competitor:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 경쟁사 삭제
+     */
+    async deleteCompetitor(competitorId) {
+        try {
+            const { error } = await supabaseClient
+                .from('competitors')
+                .delete()
+                .eq('id', competitorId);
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error deleting competitor:', error);
+            return false;
+        }
     }
 };

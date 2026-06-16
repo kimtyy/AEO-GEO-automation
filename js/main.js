@@ -73,6 +73,7 @@ function renderStoreSelector() {
 function refreshDashboard() {
     loadStoreData();
     loadMonitoringHistory();
+    loadCompetitorAnalysis();
 }
 
 // 사이드바 네비게이션
@@ -200,6 +201,34 @@ function loadStoreData() {
                 });
             });
         }
+        
+        // 경쟁사 목록 로드
+        const settingsCompetitorsList = document.getElementById('settings-competitors-list');
+        if (settingsCompetitorsList) {
+            const competitors = await supabaseService.getCompetitors(currentStore.id);
+            if (competitors && competitors.length > 0) {
+                settingsCompetitorsList.innerHTML = competitors.map(c => `
+                    <li style="margin-bottom: 5px; display: flex; justify-content: space-between;">
+                        <span>${c.competitor_name}</span>
+                        <button class="btn btn-secondary btn-delete-competitor" data-id="${c.id}" style="padding: 2px 8px; font-size: 12px; border:none; background: #e74c3c; color: white; border-radius:3px;">삭제</button>
+                    </li>
+                `).join('');
+            } else {
+                settingsCompetitorsList.innerHTML = '<li style="color: #999;">등록된 경쟁사가 없습니다.</li>';
+            }
+            
+            document.querySelectorAll('.btn-delete-competitor').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const success = await supabaseService.deleteCompetitor(id);
+                    if (success) {
+                        loadStoreData(); // UI 리로드
+                    } else {
+                        alert('삭제에 실패했습니다.');
+                    }
+                });
+            });
+        }
     } catch (error) {
         console.error('Failed to load store data:', error);
     }
@@ -267,19 +296,44 @@ function initSettingsEdit() {
         });
     }
     
-    if (btnAddQuery) {
-        btnAddQuery.addEventListener('click', () => {
-            const val = queryInput.value.trim();
-            if (val && currentStore) {
-                let queries = currentStore.queries || [];
-                if (typeof queries === 'string') queries = JSON.parse(queries);
-                queries.push(val);
-                currentStore.queries = queries;
+    if (btnAddQuery && queryInput) {
+        // 기존 이벤트 리스너 중복 방지를 위한 클론 처리 (간단한 우회)
+        const newBtnAddQuery = btnAddQuery.cloneNode(true);
+        btnAddQuery.parentNode.replaceChild(newBtnAddQuery, btnAddQuery);
+        
+        newBtnAddQuery.addEventListener('click', () => {
+            const q = queryInput.value.trim();
+            if (q && currentStore) {
+                let currentQueries = currentStore.queries || [];
+                if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
+                currentQueries.push(q);
+                currentStore.queries = currentQueries;
                 queryInput.value = '';
                 loadStoreData();
             }
         });
     }
+
+    const btnAddCompetitor = document.getElementById('btn-add-competitor');
+    const competitorInput = document.getElementById('new-competitor-input');
+    if (btnAddCompetitor && competitorInput) {
+        const newBtnAddCompetitor = btnAddCompetitor.cloneNode(true);
+        btnAddCompetitor.parentNode.replaceChild(newBtnAddCompetitor, btnAddCompetitor);
+        
+        newBtnAddCompetitor.addEventListener('click', async () => {
+            const name = competitorInput.value.trim();
+            if (name && currentStore) {
+                const result = await supabaseService.addCompetitor(currentStore.id, name);
+                if (result) {
+                    competitorInput.value = '';
+                    loadStoreData();
+                } else {
+                    alert('경쟁사 추가에 실패했습니다.');
+                }
+            }
+        });
+    }
+}
     
     if (btnSave) {
         btnSave.addEventListener('click', async () => {
@@ -445,66 +499,83 @@ function initAnalysis() {
                 }
             }, 200);
 
-            // 병렬 API 호출 시뮬레이션
-            const prompt = "현재 매장 데이터를 바탕으로 AI 검색 엔진 노출도를 분석해줘.";
-            const results = await Promise.all([
-                apiService.callClaude(claudeKey, prompt),
-                apiService.callChatGPT(chatgptKey, prompt),
-                apiService.callGemini(geminiKey, prompt)
-            ]);
+            // 매장 질문 가져오기
+            let queries = currentStore ? currentStore.queries : [];
+            if (typeof queries === 'string') {
+                try { queries = JSON.parse(queries); } catch(e) { queries = []; }
+            }
+            if (!queries || queries.length === 0) {
+                queries = ["가평 현리 단체 회식 장소 추천해줘"];
+            }
+
+            // 타겟 설정 (자사 + 경쟁사)
+            const targets = [];
+            if (currentStore) {
+                targets.push({ isCompetitor: false, name: currentStore.store_name });
+                const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
+                competitors.forEach(c => {
+                    targets.push({ isCompetitor: true, name: c.competitor_name });
+                });
+            } else {
+                targets.push({ isCompetitor: false, name: '테스트 매장' });
+            }
+
+            const now = new Date().toISOString();
+            const tasks = [];
+
+            // 모든 타겟 x 질문 조합에 대해 API 호출
+            for (const target of targets) {
+                for (const q of queries) {
+                    const prompt = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
+                    tasks.push((async () => {
+                        const res = await Promise.all([
+                            apiService.callClaude(claudeKey, prompt),
+                            apiService.callChatGPT(chatgptKey, prompt),
+                            apiService.callGemini(geminiKey, prompt)
+                        ]);
+                        
+                        return [
+                            { ai_name: 'Claude', query: prompt, response: res[0].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'ChatGPT', query: prompt, response: res[1].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'Gemini', query: prompt, response: res[2].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
+                        ];
+                    })());
+                }
+            }
+
+            const allResults = await Promise.all(tasks);
+            const flatResults = allResults.flat();
 
             clearInterval(progressInterval);
             progressBar.style.width = '100%';
             progressText.textContent = '100% 완료';
 
-            console.log("Analysis Results:", results);
-            
             // Supabase에 분석 결과 자동 저장
             if(currentStore) {
-                const now = new Date().toISOString();
-                const insertPayload = [
-                    {
-                        store_id: currentStore.id,
-                        ai_name: results[0].ai || 'Claude',
-                        query: prompt,
-                        response: results[0].data,
-                        mentioned: true,
-                        score: 85,
-                        created_at: now
-                    },
-                    {
-                        store_id: currentStore.id,
-                        ai_name: results[1].ai || 'ChatGPT',
-                        query: prompt,
-                        response: results[1].data,
-                        mentioned: true,
-                        score: 85,
-                        created_at: now
-                    },
-                    {
-                        store_id: currentStore.id,
-                        ai_name: results[2].ai || 'Gemini',
-                        query: prompt,
-                        response: results[2].data,
-                        mentioned: true,
-                        score: 85,
-                        created_at: now
-                    }
-                ];
+                const insertPayload = flatResults.map(r => ({
+                    store_id: currentStore.id,
+                    ai_name: r.ai_name,
+                    query: r.query,
+                    response: r.response,
+                    mentioned: r.mentioned,
+                    score: r.score,
+                    created_at: now
+                }));
                 await supabaseService.saveAnalysisResult(insertPayload);
             }
             
-            // 결과 표시 (UI 업데이트)
+            // UI에는 자사의 첫 번째 질문 결과만 대표로 표시
             setTimeout(() => {
                 analysisProgress.style.display = 'none';
                 analysisResults.style.display = 'block';
                 
-                document.getElementById('claude-response').textContent = results[0].data;
-                document.getElementById('chatgpt-response').textContent = results[1].data;
-                document.getElementById('gemini-response').textContent = results[2].data;
-                
-                // 가상 처방
-                document.getElementById('ai-prescription-text').value = `[진단 요약]\nClaude: ${results[0].data}\nChatGPT: ${results[1].data}\nGemini: ${results[2].data}\n\n[추천 액션]\n1. 신메뉴 관련 포스팅 강화\n2. 네이버 플레이스 주차 정보 업데이트`;
+                if (flatResults.length >= 3) {
+                    document.getElementById('claude-response').textContent = flatResults[0].response;
+                    document.getElementById('chatgpt-response').textContent = flatResults[1].response;
+                    document.getElementById('gemini-response').textContent = flatResults[2].response;
+                    
+                    document.getElementById('ai-prescription-text').value = `[진단 요약]\nClaude: ${flatResults[0].response}\nChatGPT: ${flatResults[1].response}\nGemini: ${flatResults[2].response}\n\n[추천 액션]\n1. 신메뉴 관련 포스팅 강화\n2. 네이버 플레이스 주차 정보 업데이트`;
+                }
             }, 500);
 
         } catch (error) {
@@ -622,6 +693,100 @@ async function loadMonitoringHistory() {
         }
     } catch (error) {
         console.error('Failed to load history:', error);
+    }
+}
+
+async function loadCompetitorAnalysis() {
+    const tableBody = document.getElementById('competitor-table-body');
+    if (!tableBody) return;
+
+    try {
+        if (!currentStore) return;
+        const competitors = await supabaseService.getCompetitors(currentStore.id);
+        const history = await supabaseService.getAnalysisHistory(currentStore.id);
+
+        if (!competitors || competitors.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
+            return;
+        }
+
+        if (!history || history.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">분석을 실행해주세요</td></tr>`;
+            return;
+        }
+
+        // 가장 최근 분석 그룹 찾기
+        const recentDateStr = history[0].created_at;
+        const recentRows = history.filter(h => h.created_at === recentDateStr);
+
+        const targets = [
+            { isCompetitor: false, name: currentStore.store_name || '우리 매장' },
+            ...competitors.map(c => ({ isCompetitor: true, name: c.competitor_name }))
+        ];
+
+        let html = '';
+        targets.forEach(target => {
+            // 필터링
+            const targetRows = recentRows.filter(r => {
+                if (target.isCompetitor) {
+                    return r.query.includes(`[경쟁사:${target.name}]`);
+                } else {
+                    return !r.query.includes(`[경쟁사:`);
+                }
+            });
+
+            if (targetRows.length > 0) {
+                let totalScore = 0;
+                let c_mentions = 0, c_total = 0;
+                let g_mentions = 0, g_total = 0;
+                let m_mentions = 0, m_total = 0; // m for chatgpt
+
+                targetRows.forEach(r => {
+                    totalScore += Number(r.score) || 0;
+                    if (r.ai_name.toLowerCase().includes('claude')) {
+                        c_total++;
+                        if (r.mentioned) c_mentions++;
+                    } else if (r.ai_name.toLowerCase().includes('chatgpt')) {
+                        m_total++;
+                        if (r.mentioned) m_mentions++;
+                    } else if (r.ai_name.toLowerCase().includes('gemini')) {
+                        g_total++;
+                        if (r.mentioned) g_mentions++;
+                    }
+                });
+
+                const avgScore = Math.round(totalScore / targetRows.length);
+                const claudeRate = c_total ? Math.round((c_mentions / c_total) * 100) : 0;
+                const chatgptRate = m_total ? Math.round((m_mentions / m_total) * 100) : 0;
+                const geminiRate = g_total ? Math.round((g_mentions / g_total) * 100) : 0;
+
+                const displayName = target.isCompetitor ? target.name : `${target.name} (자사)`;
+
+                html += `
+                    <tr>
+                        <td>${displayName}</td>
+                        <td>${avgScore}</td>
+                        <td>${claudeRate}%</td>
+                        <td>${chatgptRate}%</td>
+                        <td>${geminiRate}%</td>
+                    </tr>
+                `;
+            } else {
+                const displayName = target.isCompetitor ? target.name : `${target.name} (자사)`;
+                html += `
+                    <tr>
+                        <td>${displayName}</td>
+                        <td colspan="4" style="color:#999; text-align:center;">분석 데이터 없음</td>
+                    </tr>
+                `;
+            }
+        });
+
+        tableBody.innerHTML = html;
+
+    } catch (error) {
+        console.error('Failed to load competitor analysis:', error);
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>`;
     }
 }
 

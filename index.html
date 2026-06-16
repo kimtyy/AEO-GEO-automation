@@ -186,6 +186,9 @@
                             <label>Gemini API Key</label>
                             <input type="password" id="gemini-key" placeholder="AIzaSy...">
                         </div>
+                        <div style="margin-bottom: 15px; color: #666;">
+                            <p>※ 우리 매장 및 등록된 모든 경쟁사에 대해 3개 AI 동시 분석이 진행되므로, 경쟁사가 많을 경우 분석 시간이 길어질 수 있습니다.</p>
+                        </div>
                         <button class="btn btn-primary" id="btn-analyze">3개 AI 동시 진단 분석 실행</button>
                         <div id="analysis-progress" style="display: none; margin-top: 15px;">
                             <div style="background: #e0e0e0; border-radius: 4px; height: 10px; overflow: hidden;">
@@ -304,34 +307,14 @@
                             <thead>
                                 <tr>
                                     <th>업체명</th>
-                                    <th>가시성 점수</th>
-                                    <th>ChatGPT</th>
-                                    <th>Claude</th>
-                                    <th>Gemini</th>
+                                    <th>가시성 점수(평균)</th>
+                                    <th>Claude 언급률</th>
+                                    <th>ChatGPT 언급률</th>
+                                    <th>Gemini 언급률</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>설맥 가평현리점 (자사)</td>
-                                    <td>85</td>
-                                    <td>상</td>
-                                    <td>중</td>
-                                    <td>상</td>
-                                </tr>
-                                <tr>
-                                    <td>A 호프</td>
-                                    <td>60</td>
-                                    <td>중</td>
-                                    <td>하</td>
-                                    <td>중</td>
-                                </tr>
-                                <tr>
-                                    <td>B 맥주</td>
-                                    <td>45</td>
-                                    <td>하</td>
-                                    <td>하</td>
-                                    <td>하</td>
-                                </tr>
+                            <tbody id="competitor-table-body">
+                                <!-- Loaded from Supabase -->
                             </tbody>
                         </table>
                     </div>
@@ -391,7 +374,19 @@
                             <input type="text" id="new-query-input" class="form-control" placeholder="새 질문 추가" style="flex: 1; padding: 8px;">
                             <button class="btn btn-secondary" id="btn-add-query">추가</button>
                         </div>
-                        <button class="btn btn-primary" style="margin-top: 20px;" id="btn-save-settings">설정 저장</button>
+                    </div>
+                    <div class="card" style="margin-top: 20px;">
+                        <h3>경쟁사 관리</h3>
+                        <ul id="settings-competitors-list" style="margin-top: 15px; padding-left: 20px;">
+                            <!-- Loaded via JS from currentStore -->
+                        </ul>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <input type="text" id="new-competitor-input" class="form-control" placeholder="새 경쟁사 이름 추가" style="flex: 1; padding: 8px;">
+                            <button class="btn btn-secondary" id="btn-add-competitor">추가</button>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="btn-save-settings">설정 저장 (매장 정보 및 질문)</button>
                     </div>
                 </section>
             </div>
