@@ -88,9 +88,10 @@ const supabaseService = {
      */
     async saveAnalysisResult(data) {
         try {
+            const insertData = Array.isArray(data) ? data : [data];
             const { data: result, error } = await supabaseClient
-                .from('analysis_history')
-                .insert([data])
+                .from('analysis_results')
+                .insert(insertData)
                 .select();
             if (error) throw error;
             console.log('Analysis result saved successfully:', result);
@@ -108,7 +109,7 @@ const supabaseService = {
     async getAnalysisHistory(storeId) {
         try {
             const { data, error } = await supabaseClient
-                .from('analysis_history')
+                .from('analysis_results')
                 .select('*')
                 .eq('store_id', storeId)
                 .order('created_at', { ascending: false });

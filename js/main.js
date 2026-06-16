@@ -461,13 +461,37 @@ function initAnalysis() {
             
             // Supabase에 분석 결과 자동 저장
             if(currentStore) {
-                await supabaseService.saveAnalysisResult({
-                    store_id: currentStore.id,
-                    claude_result: results[0],
-                    chatgpt_result: results[1],
-                    gemini_result: results[2],
-                    created_at: new Date().toISOString()
-                });
+                const now = new Date().toISOString();
+                const insertPayload = [
+                    {
+                        store_id: currentStore.id,
+                        ai_name: results[0].ai || 'Claude',
+                        query: prompt,
+                        response: results[0].data,
+                        mentioned: true,
+                        score: 85,
+                        created_at: now
+                    },
+                    {
+                        store_id: currentStore.id,
+                        ai_name: results[1].ai || 'ChatGPT',
+                        query: prompt,
+                        response: results[1].data,
+                        mentioned: true,
+                        score: 85,
+                        created_at: now
+                    },
+                    {
+                        store_id: currentStore.id,
+                        ai_name: results[2].ai || 'Gemini',
+                        query: prompt,
+                        response: results[2].data,
+                        mentioned: true,
+                        score: 85,
+                        created_at: now
+                    }
+                ];
+                await supabaseService.saveAnalysisResult(insertPayload);
             }
             
             // 결과 표시 (UI 업데이트)
