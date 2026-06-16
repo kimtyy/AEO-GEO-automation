@@ -27,17 +27,17 @@ async function initStores() {
     
     renderStoreSelector();
     
-    selector.addEventListener('change', (e) => {
+    selector.addEventListener('change', async (e) => {
         if (e.target.value === 'add_new') {
             document.getElementById('new-store-modal').style.display = 'block';
             selector.value = currentStore ? currentStore.id : '';
             return;
         }
         currentStore = storesList.find(s => s.id === e.target.value);
-        refreshDashboard();
+        await refreshDashboard();
     });
     
-    refreshDashboard();
+    await refreshDashboard();
 }
 
 function renderStoreSelector() {
@@ -70,10 +70,10 @@ function renderStoreSelector() {
     selector.appendChild(addOption);
 }
 
-function refreshDashboard() {
-    loadStoreData();
-    loadMonitoringHistory();
-    loadCompetitorAnalysis();
+async function refreshDashboard() {
+    await loadStoreData();
+    await loadMonitoringHistory();
+    await loadCompetitorAnalysis();
 }
 
 // 사이드바 네비게이션
@@ -125,7 +125,7 @@ function initTabs() {
 }
 
 // currentStore 변수 데이터 로드
-function loadStoreData() {
+async function loadStoreData() {
     try {
         if (!currentStore) return;
         
@@ -191,13 +191,13 @@ function loadStoreData() {
             `).join('');
             
             document.querySelectorAll('.btn-delete-query').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     const idx = e.target.getAttribute('data-index');
                     let currentQueries = currentStore.queries || [];
                     if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
                     currentQueries.splice(idx, 1);
                     currentStore.queries = currentQueries;
-                    loadStoreData();
+                    await loadStoreData();
                 });
             });
         }
@@ -222,7 +222,7 @@ function loadStoreData() {
                     const id = e.target.getAttribute('data-id');
                     const success = await supabaseService.deleteCompetitor(id);
                     if (success) {
-                        loadStoreData(); // UI 리로드
+                        await loadStoreData(); // UI 리로드
                     } else {
                         alert('삭제에 실패했습니다.');
                     }
@@ -243,7 +243,7 @@ function initSettingsEdit() {
     let isEditing = false;
     
     if (btnEdit) {
-        btnEdit.addEventListener('click', () => {
+        btnEdit.addEventListener('click', async () => {
             isEditing = !isEditing;
             const container = document.getElementById('settings-store-info');
             
@@ -291,7 +291,7 @@ function initSettingsEdit() {
                 `;
             } else {
                 btnEdit.textContent = '수정';
-                loadStoreData(); // discard changes
+                await loadStoreData(); // discard changes
             }
         });
     }
@@ -301,7 +301,7 @@ function initSettingsEdit() {
         const newBtnAddQuery = btnAddQuery.cloneNode(true);
         btnAddQuery.parentNode.replaceChild(newBtnAddQuery, btnAddQuery);
         
-        newBtnAddQuery.addEventListener('click', () => {
+        newBtnAddQuery.addEventListener('click', async () => {
             const q = queryInput.value.trim();
             if (q && currentStore) {
                 let currentQueries = currentStore.queries || [];
@@ -309,7 +309,7 @@ function initSettingsEdit() {
                 currentQueries.push(q);
                 currentStore.queries = currentQueries;
                 queryInput.value = '';
-                loadStoreData();
+                await loadStoreData();
             }
         });
     }
@@ -326,7 +326,7 @@ function initSettingsEdit() {
                 const result = await supabaseService.addCompetitor(currentStore.id, name);
                 if (result) {
                     competitorInput.value = '';
-                    loadStoreData();
+                    await loadStoreData();
                 } else {
                     alert('경쟁사 추가에 실패했습니다.');
                 }
@@ -374,7 +374,7 @@ function initSettingsEdit() {
                     }
                     storesList = await supabaseService.getAllStores();
                     renderStoreSelector();
-                    loadStoreData();
+                    await loadStoreData();
                 } else {
                     alert('저장에 실패했습니다.');
                 }
@@ -434,7 +434,7 @@ function initNewStoreModal() {
                     storesList = await supabaseService.getAllStores();
                     currentStore = newStore;
                     renderStoreSelector();
-                    refreshDashboard();
+                    await refreshDashboard();
                     modal.style.display = 'none';
                     // clear modal
                     document.getElementById('modal-store-name').value = '';
