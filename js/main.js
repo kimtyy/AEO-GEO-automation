@@ -583,32 +583,42 @@ async function loadMonitoringHistory() {
         if(!currentStore) return;
         const history = await supabaseService.getAnalysisHistory(currentStore.id);
         if (history && history.length > 0) {
-            tableBody.innerHTML = history.map(h => {
-                const date = new Date(h.created_at).toLocaleDateString();
+            const grouped = {};
+            history.forEach(row => {
+                const key = row.created_at;
+                if (!grouped[key]) {
+                    grouped[key] = { rows: [], dateStr: new Date(key).toLocaleString() };
+                }
+                grouped[key].rows.push(row);
+            });
+
+            const sortedKeys = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+            
+            tableBody.innerHTML = sortedKeys.map(key => {
+                const group = grouped[key];
+                const totalRows = group.rows.length;
+                let totalScore = 0;
+                let mentionedCount = 0;
+                
+                group.rows.forEach(r => {
+                    totalScore += Number(r.score) || 0;
+                    if (r.mentioned) mentionedCount++;
+                });
+                
+                const avgScore = totalRows ? Math.round(totalScore / totalRows) : 0;
+                const mentionRate = totalRows ? Math.round((mentionedCount / totalRows) * 100) : 0;
+                
                 return `
                     <tr>
-                        <td>${date}</td>
-                        <td>85</td>
-                        <td>72%</td>
-                        <td>최근 진단 기록 반영됨</td>
+                        <td>${group.dateStr}</td>
+                        <td>${avgScore}</td>
+                        <td>${mentionRate}%</td>
+                        <td>분석 완료</td>
                     </tr>
                 `;
             }).join('');
         } else {
-            tableBody.innerHTML = `
-                <tr>
-                    <td>2026.05.15</td>
-                    <td>85</td>
-                    <td>72%</td>
-                    <td>신메뉴 키워드 반영</td>
-                </tr>
-                <tr>
-                    <td>2026.05.01</td>
-                    <td>82</td>
-                    <td>68%</td>
-                    <td>주차 정보 업데이트 반영</td>
-                </tr>
-            `;
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">분석 이력이 없습니다.</td></tr>`;
         }
     } catch (error) {
         console.error('Failed to load history:', error);
