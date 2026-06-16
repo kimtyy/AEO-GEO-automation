@@ -490,10 +490,6 @@ function initAnalysis() {
     if (!btnAnalyze) return;
 
     btnAnalyze.addEventListener('click', async () => {
-        const claudeKey = document.getElementById('claude-key').value;
-        const chatgptKey = document.getElementById('chatgpt-key').value;
-        const geminiKey = document.getElementById('gemini-key').value;
-
         // 버튼 상태 변경
         const originalText = btnAnalyze.textContent;
         btnAnalyze.textContent = "분석 중...";
@@ -556,9 +552,9 @@ function initAnalysis() {
                     const queryLog = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
                     tasks.push((async () => {
                         const res = await Promise.all([
-                            apiService.callClaude(claudeKey, prompt),
-                            apiService.callChatGPT(chatgptKey, prompt),
-                            apiService.callGemini(geminiKey, prompt)
+                            apiService.callClaude(prompt),
+                            apiService.callChatGPT(prompt),
+                            apiService.callGemini(prompt)
                         ]);
                         
                         return [
