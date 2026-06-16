@@ -23,8 +23,8 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'OpenAI API request failed');
+      const errorData = await response.json().catch(() => ({}));
+      return res.status(response.status).json({ error: errorData.error?.message || 'OpenAI API request failed', details: errorData });
     }
 
     const data = await response.json();

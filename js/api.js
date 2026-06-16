@@ -12,7 +12,11 @@ const apiService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt })
         });
-        if (!response.ok) throw new Error("Claude API Request Failed");
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error("Claude Error Data:", errData);
+            throw new Error(`Claude API Request Failed: ${errData.error || response.statusText}`);
+        }
         return await response.json();
     },
 
@@ -27,7 +31,11 @@ const apiService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt })
         });
-        if (!response.ok) throw new Error("ChatGPT API Request Failed");
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error("ChatGPT Error Data:", errData);
+            throw new Error(`ChatGPT API Request Failed: ${errData.error || response.statusText}`);
+        }
         return await response.json();
     },
 
@@ -42,7 +50,11 @@ const apiService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt })
         });
-        if (!response.ok) throw new Error("Gemini API Request Failed");
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error("Gemini Error Data:", errData);
+            throw new Error(`Gemini API Request Failed: ${errData.error || response.statusText}`);
+        }
         return await response.json();
     }
 };
