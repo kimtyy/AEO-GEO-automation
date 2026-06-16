@@ -207,12 +207,15 @@ async function loadStoreData() {
         if (settingsCompetitorsList) {
             const competitors = await supabaseService.getCompetitors(currentStore.id);
             if (competitors && competitors.length > 0) {
-                settingsCompetitorsList.innerHTML = competitors.map(c => `
+                settingsCompetitorsList.innerHTML = competitors.map(c => {
+                    const addressStr = c.address ? ` (${c.address})` : '';
+                    return `
                     <li style="margin-bottom: 5px; display: flex; justify-content: space-between;">
-                        <span>${c.competitor_name}</span>
+                        <span>${c.competitor_name}${addressStr}</span>
                         <button class="btn btn-secondary btn-delete-competitor" data-id="${c.id}" style="padding: 2px 8px; font-size: 12px; border:none; background: #e74c3c; color: white; border-radius:3px;">삭제</button>
                     </li>
-                `).join('');
+                    `;
+                }).join('');
             } else {
                 settingsCompetitorsList.innerHTML = '<li style="color: #999;">등록된 경쟁사가 없습니다.</li>';
             }
@@ -316,16 +319,19 @@ function initSettingsEdit() {
 
     const btnAddCompetitor = document.getElementById('btn-add-competitor');
     const competitorInput = document.getElementById('new-competitor-input');
+    const competitorAddressInput = document.getElementById('new-competitor-address');
     if (btnAddCompetitor && competitorInput) {
         const newBtnAddCompetitor = btnAddCompetitor.cloneNode(true);
         btnAddCompetitor.parentNode.replaceChild(newBtnAddCompetitor, btnAddCompetitor);
         
         newBtnAddCompetitor.addEventListener('click', async () => {
             const name = competitorInput.value.trim();
+            const address = competitorAddressInput ? competitorAddressInput.value.trim() : '';
             if (name && currentStore) {
-                const result = await supabaseService.addCompetitor(currentStore.id, name);
+                const result = await supabaseService.addCompetitor(currentStore.id, name, address);
                 if (result) {
                     competitorInput.value = '';
+                    if (competitorAddressInput) competitorAddressInput.value = '';
                     await loadStoreData();
                 } else {
                     alert('경쟁사 추가에 실패했습니다.');
@@ -510,13 +516,13 @@ function initAnalysis() {
             // 타겟 설정 (자사 + 경쟁사)
             const targets = [];
             if (currentStore) {
-                targets.push({ isCompetitor: false, name: currentStore.store_name });
+                targets.push({ isCompetitor: false, name: currentStore.store_name, address: currentStore.address });
                 const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
                 competitors.forEach(c => {
-                    targets.push({ isCompetitor: true, name: c.competitor_name });
+                    targets.push({ isCompetitor: true, name: c.competitor_name, address: c.address });
                 });
             } else {
-                targets.push({ isCompetitor: false, name: '테스트 매장' });
+                targets.push({ isCompetitor: false, name: '테스트 매장', address: '' });
             }
 
             const now = new Date().toISOString();
@@ -525,7 +531,17 @@ function initAnalysis() {
             // 모든 타겟 x 질문 조합에 대해 API 호출
             for (const target of targets) {
                 for (const q of queries) {
-                    const prompt = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
+                    let prompt = q;
+                    if (target.isCompetitor) {
+                        const addrInfo = target.address ? `, 위치: ${target.address}` : '';
+                        prompt = `경쟁 업체 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                    } else {
+                        const addrInfo = target.address ? `, 위치: ${target.address}` : '';
+                        prompt = `우리 매장 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                    }
+                    
+                    // DB 저장을 위한 query 필드용 문자열 (UI 및 집계용)
+                    const queryLog = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
                     tasks.push((async () => {
                         const res = await Promise.all([
                             apiService.callClaude(claudeKey, prompt),
@@ -534,9 +550,9 @@ function initAnalysis() {
                         ]);
                         
                         return [
-                            { ai_name: 'Claude', query: prompt, response: res[0].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'ChatGPT', query: prompt, response: res[1].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'Gemini', query: prompt, response: res[2].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
+                            { ai_name: 'Claude', query: queryLog, response: res[0].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'ChatGPT', query: queryLog, response: res[1].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
+                            { ai_name: 'Gemini', query: queryLog, response: res[2].data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
                         ];
                     })());
                 }

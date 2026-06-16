@@ -180,11 +180,11 @@ const supabaseService = {
     /**
      * 경쟁사 추가
      */
-    async addCompetitor(storeId, name) {
+    async addCompetitor(storeId, name, address) {
         try {
             const { data: result, error } = await supabaseClient
                 .from('competitors')
-                .insert([{ store_id: storeId, competitor_name: name }])
+                .insert([{ store_id: storeId, competitor_name: name, address: address }])
                 .select();
             if (error) throw error;
             return result;
