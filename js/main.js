@@ -810,37 +810,106 @@ function initContentGeneration() {
     const tableBody = document.querySelector('#content-table tbody');
     
     btns.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
+            if (!currentStore) {
+                alert('먼저 매장을 선택해주세요.');
+                return;
+            }
+            
             const type = btn.getAttribute('data-type');
             const originalText = btn.textContent;
             btn.textContent = '생성 중...';
             btn.disabled = true;
             
-            setTimeout(() => {
-                const tr = document.createElement('tr');
-                const date = new Date().toLocaleDateString();
-                tr.innerHTML = `
-                    <td>${date}</td>
-                    <td>${type}</td>
-                    <td>${STORE_DATA.store_name} ${type} 콘텐츠입니다...</td>
-                    <td><span style="color: #3B6D11; font-weight: bold;">생성 완료</span></td>
-                `;
-                tableBody.prepend(tr);
+            try {
+                const category = currentStore.category || "일반 음식점";
+                const storeName = currentStore.store_name || currentStore.brand || "";
+                const address = currentStore.address || "";
+                const concept = currentStore.concept || "";
+                let hoursStr = "";
+                if (typeof currentStore.hours === 'object') {
+                    try { hoursStr = JSON.stringify(currentStore.hours); } catch(e) {}
+                } else {
+                    hoursStr = currentStore.hours || "";
+                }
+                const menus = currentStore.menus || "정보 없음";
+
+                let basePrompt = `당신은 ${category} 분야에서 오랜 경력을 가진 전문가이자 마케팅 카피라이터입니다. 
+다음 매장 정보를 참고해서 지시사항을 작성해주세요.
+
+매장 정보: ${storeName}, ${address}, ${category}, ${concept}, 메뉴: ${menus}, 영업시간: ${hoursStr}\n\n`;
+
+                let typeInstruction = "";
+                switch(type) {
+                    case '플레이스 최적화':
+                        typeInstruction = "네이버플레이스에 등록할 업체 소개글을 AI가 사실 정보로 인용하기 좋게 구조화된 형태로 작성해주세요. 300자 이내.";
+                        break;
+                    case '비즈니스 프로필 최적화':
+                        typeInstruction = "구글 비즈니스 프로필에 등록할 업체 소개글을 작성해주세요. 250자 이내.";
+                        break;
+                    case '질문뱅크':
+                        typeInstruction = "이 매장과 관련해서 고객이 실제로 검색할 만한 질문 10개를 만들어주세요. '[지역명] [업종] 추천해줘' 같은 자연스러운 검색 형태로, 번호를 매겨 한 줄씩 작성해주세요.";
+                        break;
+                    case '지역키워드 추천형':
+                        typeInstruction = "지역명+업종+특징을 조합한 질문형 콘텐츠를 작성해주세요. 주변 명소나 코스와 연계해서 400자 정도로 자연스럽게 추천하는 글 형태로 작성해주세요.";
+                        break;
+                    case '전문성 콘텐츠':
+                        typeInstruction = "이 업종과 관련된 전문 지식을 다루는 콘텐츠를 작성해주세요. 고객이 신뢰할 수 있는 전문가의 글처럼, 실용적인 팁을 포함해 400자 정도로 작성해주세요.";
+                        break;
+                    case 'SNS/숏폼 콘텐츠':
+                        typeInstruction = "인스타그램이나 짧은 영상에 쓸 캡션을 작성해주세요. 짧고 임팩트 있게, 해시태그 5개를 포함해서 100자 이내로 작성해주세요.";
+                        break;
+                    case '보도자료형':
+                        typeInstruction = "신메뉴 출시나 이벤트를 알리는 보도자료 형식의 글을 작성해주세요. 공식적인 톤으로 300자 정도 작성해주세요.";
+                        break;
+                    default:
+                        typeInstruction = "해당 매장을 홍보하는 짧은 글을 작성해주세요.";
+                }
+
+                const finalPrompt = basePrompt + typeInstruction;
+
+                // API 호출
+                const response = await apiService.callClaude(finalPrompt);
+                const generatedContent = response.data;
                 
+                // 데이터 구성
+                const dateStr = new Date().toLocaleDateString();
+                const formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
+                const title = `${type} - ${formattedDate}`;
+                const previewText = generatedContent.substring(0, 50) + (generatedContent.length > 50 ? '...' : '');
+                
+                // Supabase 저장
+                await supabaseService.saveContent({
+                    store_id: currentStore.id,
+                    type: type,
+                    title: title,
+                    body: generatedContent,
+                    preview: previewText,
+                    status: 'draft',
+                    created_at: new Date().toISOString()
+                });
+                
+                // 테이블에 즉시 추가
+                if (tableBody) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${dateStr}</td>
+                        <td>${type}</td>
+                        <td>${previewText}</td>
+                        <td><span style="color: #f39c12; font-weight: bold;">초안</span></td>
+                    `;
+                    tableBody.prepend(tr);
+                }
+                
+                // 성공 알림 (선택적)
+                // alert(`${type} 생성이 완료되었습니다.`);
+            } catch (error) {
+                console.error('Content generation error:', error);
+                alert('콘텐츠 생성 중 오류가 발생했습니다.');
+            } finally {
                 btn.textContent = originalText;
                 btn.disabled = false;
-                
-                // Save to supabase
-                if(currentStore) {
-                    supabaseService.saveContent({
-                        store_id: currentStore.id,
-                        type: type,
-                        preview: `${currentStore.store_name || currentStore.brand} ${type} 콘텐츠입니다...`,
-                        status: '완료',
-                        created_at: new Date().toISOString()
-                    });
-                }
-            }, 1000);
+            }
         });
     });
 }
