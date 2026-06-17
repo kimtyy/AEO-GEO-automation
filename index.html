@@ -177,9 +177,55 @@
                     <div class="card">
                         <h3>AI 진단 분석 실행</h3>
                         <div style="margin-bottom: 15px; color: #666;">
-                            <p>※ 우리 매장 및 등록된 모든 경쟁사에 대해 3개 AI 동시 분석이 진행되므로, 경쟁사가 많을 경우 분석 시간이 길어질 수 있습니다. <br/>(Gemini 무료 한도로 인해 분석이 다소 오래 걸릴 수 있습니다 - 최대 1~2분)</p>
+                            <p>※ 선택된 대상, AI, 질문에 대해 분석이 진행됩니다. <br/>(Gemini 무료 한도로 인해 분석이 다소 오래 걸릴 수 있습니다 - 최대 1~2분)</p>
                         </div>
-                        <button class="btn btn-primary" id="btn-analyze">3개 AI 동시 진단 분석 실행</button>
+                        
+                        <div class="card" id="analysis-options-card" style="margin-bottom: 20px; background-color: #fafafa;">
+                            <h4>분석 옵션 선택</h4>
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; margin-bottom: 15px;">
+                                <div style="flex: 1; min-width: 200px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: white;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <strong>대상 선택</strong>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" id="btn-toggle-targets">전체 해제</button>
+                                    </div>
+                                    <div id="target-checkboxes" style="display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;">
+                                        <!-- JS로 렌더링됨 -->
+                                    </div>
+                                </div>
+                                
+                                <div style="flex: 1; min-width: 200px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: white;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <strong>AI 선택</strong>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" id="btn-toggle-ais">전체 해제</button>
+                                    </div>
+                                    <div id="ai-checkboxes" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="ai-checkbox" value="Claude" checked> Claude</label>
+                                        <label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="ai-checkbox" value="ChatGPT" checked> ChatGPT</label>
+                                        <label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="ai-checkbox" value="Gemini" checked> Gemini</label>
+                                    </div>
+                                </div>
+                                
+                                <div style="flex: 1; min-width: 250px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: white;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <strong>질문 선택</strong>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" id="btn-toggle-queries">전체 해제</button>
+                                    </div>
+                                    <div id="query-checkboxes" style="display: flex; flex-direction: column; gap: 8px; max-height: 120px; overflow-y: auto; margin-bottom: 10px;">
+                                        <!-- JS로 렌더링됨 -->
+                                    </div>
+                                    <div style="display: flex; gap: 5px; border-top: 1px solid #eee; padding-top: 10px;">
+                                        <input type="text" id="analysis-new-query" class="form-control" placeholder="새 질문 추가" style="padding: 6px; font-size: 12px; flex: 1;">
+                                        <button class="btn btn-secondary" id="btn-analysis-add-query" style="padding: 6px 10px; font-size: 12px;">추가</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right; font-weight: bold; color: #185FA5; font-size: 1.1em;" id="expected-api-calls">
+                                예상 API 호출 수: 0 × 0 × 0 = 0회
+                            </div>
+                            <div id="analysis-warning" style="color: #e74c3c; text-align: right; font-size: 13px; margin-top: 5px; display: none;">최소 1개 이상 선택해주세요</div>
+                        </div>
+
+                        <button class="btn btn-primary" id="btn-analyze" style="width: 100%; font-size: 1.1em; padding: 12px;">선택 항목 진단 분석 실행</button>
                         <div id="analysis-progress" style="display: none; margin-top: 15px;">
                             <div style="background: #e0e0e0; border-radius: 4px; height: 10px; overflow: hidden;">
                                 <div id="progress-bar" style="background: #185FA5; width: 0%; height: 100%; transition: width 0.5s;"></div>

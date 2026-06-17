@@ -244,6 +244,10 @@ async function loadStoreData() {
                 });
             });
         }
+        
+        if (typeof renderAnalysisOptions === 'function') {
+            await renderAnalysisOptions();
+        }
     } catch (error) {
         console.error('Failed to load store data:', error);
     }
@@ -479,6 +483,66 @@ function initNewStoreModal() {
     }
 }
 
+async function renderAnalysisOptions() {
+    if (!currentStore) return;
+    const targetContainer = document.getElementById('target-checkboxes');
+    const queryContainer = document.getElementById('query-checkboxes');
+    if (!targetContainer || !queryContainer) return;
+    
+    // 대상 선택
+    let targetsHtml = `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="target-checkbox" value="self" data-name="${currentStore.store_name || '우리 매장'}" data-address="${currentStore.address || ''}" checked> ${currentStore.store_name || '우리 매장'} (자사)</label>`;
+    const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
+    competitors.forEach(c => {
+        targetsHtml += `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="target-checkbox" value="competitor" data-name="${c.competitor_name}" data-address="${c.address || ''}" checked> ${c.competitor_name}</label>`;
+    });
+    targetContainer.innerHTML = targetsHtml;
+    
+    // 질문 선택
+    let queries = currentStore.queries || [];
+    if (typeof queries === 'string') {
+        try { queries = JSON.parse(queries); } catch(e) { queries = []; }
+    }
+    if (queries.length === 0) {
+        queries = ["가평 현리 단체 회식 장소 추천해줘"];
+    }
+    
+    let queriesHtml = '';
+    queries.forEach(q => {
+        queriesHtml += `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="query-checkbox" value="${q}" checked> ${q}</label>`;
+    });
+    queryContainer.innerHTML = queriesHtml;
+    
+    // 이벤트 리스너 다시 부착 (새로 생성된 체크박스들)
+    document.querySelectorAll('.target-checkbox, .query-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateExpectedApiCalls);
+    });
+    
+    updateExpectedApiCalls();
+}
+
+function updateExpectedApiCalls() {
+    const targetsCount = document.querySelectorAll('.target-checkbox:checked').length;
+    const aisCount = document.querySelectorAll('.ai-checkbox:checked').length;
+    const queriesCount = document.querySelectorAll('.query-checkbox:checked').length;
+    
+    const total = targetsCount * aisCount * queriesCount;
+    const expectedEl = document.getElementById('expected-api-calls');
+    const btnAnalyze = document.getElementById('btn-analyze');
+    const warningEl = document.getElementById('analysis-warning');
+    
+    if (expectedEl) {
+        expectedEl.textContent = `예상 API 호출 수: ${targetsCount} × ${queriesCount} × ${aisCount} = ${total}회`;
+    }
+    
+    if (total === 0) {
+        if (btnAnalyze) btnAnalyze.disabled = true;
+        if (warningEl) warningEl.style.display = 'block';
+    } else {
+        if (btnAnalyze) btnAnalyze.disabled = false;
+        if (warningEl) warningEl.style.display = 'none';
+    }
+}
+
 // 진단 분석 실행
 function initAnalysis() {
     const btnAnalyze = document.getElementById('btn-analyze');
@@ -487,9 +551,80 @@ function initAnalysis() {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
 
+    // 토글 버튼 및 AI 체크박스 이벤트 바인딩
+    document.querySelectorAll('.ai-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateExpectedApiCalls);
+    });
+
+    document.getElementById('btn-toggle-targets')?.addEventListener('click', (e) => {
+        const checkboxes = Array.from(document.querySelectorAll('.target-checkbox'));
+        const isAllChecked = checkboxes.every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !isAllChecked);
+        e.target.textContent = isAllChecked ? '전체 선택' : '전체 해제';
+        updateExpectedApiCalls();
+    });
+    
+    document.getElementById('btn-toggle-ais')?.addEventListener('click', (e) => {
+        const checkboxes = Array.from(document.querySelectorAll('.ai-checkbox'));
+        const isAllChecked = checkboxes.every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !isAllChecked);
+        e.target.textContent = isAllChecked ? '전체 선택' : '전체 해제';
+        updateExpectedApiCalls();
+    });
+    
+    document.getElementById('btn-toggle-queries')?.addEventListener('click', (e) => {
+        const checkboxes = Array.from(document.querySelectorAll('.query-checkbox'));
+        const isAllChecked = checkboxes.every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !isAllChecked);
+        e.target.textContent = isAllChecked ? '전체 선택' : '전체 해제';
+        updateExpectedApiCalls();
+    });
+
+    // 질문 추가 로직
+    document.getElementById('btn-analysis-add-query')?.addEventListener('click', async () => {
+        const input = document.getElementById('analysis-new-query');
+        const q = input.value.trim();
+        if (q && currentStore) {
+            let currentQueries = currentStore.queries || [];
+            if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
+            currentQueries.push(q);
+            currentStore.queries = currentQueries;
+            
+            // DB 업데이트
+            await supabaseService.updateStore(currentStore.id, { queries: currentStore.queries });
+            
+            input.value = '';
+            await loadStoreData(); // UI 갱신 (renderAnalysisOptions 포함)
+        }
+    });
+
     if (!btnAnalyze) return;
 
     btnAnalyze.addEventListener('click', async () => {
+        // 타겟 설정
+        const targets = [];
+        document.querySelectorAll('.target-checkbox:checked').forEach(cb => {
+            targets.push({
+                isCompetitor: cb.value === 'competitor',
+                name: cb.getAttribute('data-name'),
+                address: cb.getAttribute('data-address')
+            });
+        });
+        
+        // 질문 설정
+        const queries = [];
+        document.querySelectorAll('.query-checkbox:checked').forEach(cb => {
+            queries.push(cb.value);
+        });
+        
+        // AI 설정
+        const selectedAIs = Array.from(document.querySelectorAll('.ai-checkbox:checked')).map(cb => cb.value);
+
+        if (targets.length === 0 || queries.length === 0 || selectedAIs.length === 0) {
+            alert('대상, AI, 질문을 각각 1개 이상 선택해주세요.');
+            return;
+        }
+
         // 버튼 상태 변경
         const originalText = btnAnalyze.textContent;
         btnAnalyze.textContent = "분석 중...";
@@ -512,27 +647,6 @@ function initAnalysis() {
                 }
             }, 200);
 
-            // 매장 질문 가져오기
-            let queries = currentStore ? currentStore.queries : [];
-            if (typeof queries === 'string') {
-                try { queries = JSON.parse(queries); } catch(e) { queries = []; }
-            }
-            if (!queries || queries.length === 0) {
-                queries = ["가평 현리 단체 회식 장소 추천해줘"];
-            }
-
-            // 타겟 설정 (자사 + 경쟁사)
-            const targets = [];
-            if (currentStore) {
-                targets.push({ isCompetitor: false, name: currentStore.store_name, address: currentStore.address });
-                const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
-                competitors.forEach(c => {
-                    targets.push({ isCompetitor: true, name: c.competitor_name, address: c.address });
-                });
-            } else {
-                targets.push({ isCompetitor: false, name: '테스트 매장', address: '' });
-            }
-
             const now = new Date().toISOString();
             const tasks = [];
             
@@ -541,7 +655,7 @@ function initAnalysis() {
             }
             let geminiDelayMs = 0;
 
-            // 모든 타겟 x 질문 조합에 대해 API 호출
+            // 선택된 타겟 x 질문 조합에 대해 API 호출
             for (const target of targets) {
                 for (const q of queries) {
                     let prompt = q;
@@ -553,27 +667,32 @@ function initAnalysis() {
                         prompt = `우리 매장 정보: ${target.name}${addrInfo}\n질문: ${q}`;
                     }
                     
-                    // DB 저장을 위한 query 필드용 문자열 (UI 및 집계용)
                     const queryLog = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
                     
-                    const currentGeminiDelay = geminiDelayMs;
-                    geminiDelayMs += 2000;
-                    
                     tasks.push((async () => {
-                        const claudePromise = apiService.callClaude(prompt);
-                        const chatgptPromise = apiService.callChatGPT(prompt);
+                        const promises = [];
                         
-                        await delay(currentGeminiDelay);
-                        const geminiRes = await apiService.callGemini(prompt);
+                        if (selectedAIs.includes('Claude')) {
+                            promises.push(apiService.callClaude(prompt).then(res => ({ai_name: 'Claude', res})));
+                        }
+                        if (selectedAIs.includes('ChatGPT')) {
+                            promises.push(apiService.callChatGPT(prompt).then(res => ({ai_name: 'ChatGPT', res})));
+                        }
+                        if (selectedAIs.includes('Gemini')) {
+                            const currentGeminiDelay = geminiDelayMs;
+                            geminiDelayMs += 2000;
+                            promises.push(delay(currentGeminiDelay).then(() => apiService.callGemini(prompt)).then(res => ({ai_name: 'Gemini', res})));
+                        }
                         
-                        const claudeRes = await claudePromise;
-                        const chatgptRes = await chatgptPromise;
+                        const aiResponses = await Promise.all(promises);
                         
-                        return [
-                            { ai_name: 'Claude', query: queryLog, response: claudeRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'ChatGPT', query: queryLog, response: chatgptRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 },
-                            { ai_name: 'Gemini', query: queryLog, response: geminiRes.data, mentioned: Math.random()>0.3, score: Math.floor(Math.random()*41)+60 }
-                        ];
+                        return aiResponses.map(item => ({
+                            ai_name: item.ai_name,
+                            query: queryLog,
+                            response: item.res.data,
+                            mentioned: Math.random()>0.3,
+                            score: Math.floor(Math.random()*41)+60
+                        }));
                     })());
                 }
             }
@@ -586,7 +705,7 @@ function initAnalysis() {
             progressText.textContent = '100% 완료';
 
             // Supabase에 분석 결과 자동 저장
-            if(currentStore) {
+            if(currentStore && flatResults.length > 0) {
                 const insertPayload = flatResults.map(r => ({
                     store_id: currentStore.id,
                     ai_name: r.ai_name,
@@ -604,12 +723,43 @@ function initAnalysis() {
                 analysisProgress.style.display = 'none';
                 analysisResults.style.display = 'block';
                 
-                if (flatResults.length >= 3) {
-                    document.getElementById('claude-response').textContent = flatResults[0].response;
-                    document.getElementById('chatgpt-response').textContent = flatResults[1].response;
-                    document.getElementById('gemini-response').textContent = flatResults[2].response;
+                if (flatResults.length > 0) {
+                    const claudeFirst = flatResults.find(r => r.ai_name === 'Claude');
+                    const chatgptFirst = flatResults.find(r => r.ai_name === 'ChatGPT');
+                    const geminiFirst = flatResults.find(r => r.ai_name === 'Gemini');
+
+                    const claudeEl = document.getElementById('claude-response');
+                    if (claudeFirst && claudeEl) {
+                        claudeEl.parentElement.style.display = 'block';
+                        claudeEl.textContent = claudeFirst.response;
+                    } else if (claudeEl) {
+                        claudeEl.parentElement.style.display = 'none';
+                    }
+
+                    const chatgptEl = document.getElementById('chatgpt-response');
+                    if (chatgptFirst && chatgptEl) {
+                        chatgptEl.parentElement.style.display = 'block';
+                        chatgptEl.textContent = chatgptFirst.response;
+                    } else if (chatgptEl) {
+                        chatgptEl.parentElement.style.display = 'none';
+                    }
+
+                    const geminiEl = document.getElementById('gemini-response');
+                    if (geminiFirst && geminiEl) {
+                        geminiEl.parentElement.style.display = 'block';
+                        geminiEl.textContent = geminiFirst.response;
+                    } else if (geminiEl) {
+                        geminiEl.parentElement.style.display = 'none';
+                    }
                     
-                    document.getElementById('ai-prescription-text').value = `[진단 요약]\nClaude: ${flatResults[0].response}\nChatGPT: ${flatResults[1].response}\nGemini: ${flatResults[2].response}\n\n[추천 액션]\n1. 신메뉴 관련 포스팅 강화\n2. 네이버 플레이스 주차 정보 업데이트`;
+                    let summary = "[진단 요약]\n";
+                    if (claudeFirst) summary += `Claude: ${claudeFirst.response}\n`;
+                    if (chatgptFirst) summary += `ChatGPT: ${chatgptFirst.response}\n`;
+                    if (geminiFirst) summary += `Gemini: ${geminiFirst.response}\n`;
+                    summary += `\n[추천 액션]\n1. 관련 포스팅 강화\n2. 정보 업데이트 최신화`;
+                    
+                    const prescriptionEl = document.getElementById('ai-prescription-text');
+                    if (prescriptionEl) prescriptionEl.value = summary;
                 }
             }, 500);
 
@@ -623,6 +773,7 @@ function initAnalysis() {
         }
     });
 }
+
 
 function initContentGeneration() {
     const btns = document.querySelectorAll('.btn-generate-content');
