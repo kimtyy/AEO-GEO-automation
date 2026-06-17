@@ -291,26 +291,54 @@
                 <!-- Content Management Page -->
                 <section id="page-content" class="page">
                     <h3 class="section-title">콘텐츠 자동 생성</h3>
-                    <div class="content-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
-                        <div class="card">
-                            <h4>FAQ형</h4>
-                            <p>고객들의 자주 묻는 질문을 바탕으로 콘텐츠를 생성합니다.</p>
-                            <button class="btn btn-secondary btn-generate-content" data-type="FAQ">자동 생성</button>
+                    <div class="content-section">
+                        <h4>[섹션 1] 일회성 설정</h4>
+                        <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">한 번 잘 정비해두면 오래 유지되는 항목입니다.</p>
+                        <div class="content-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+                            <div class="card">
+                                <h4>플레이스 최적화</h4>
+                                <p>네이버플레이스 소개글, 메뉴, 사진, 영업시간을 점검하고 AI 친화적으로 다시 작성해드립니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="플레이스 최적화">최적화 콘텐츠 생성</button>
+                            </div>
+                            <div class="card">
+                                <h4>비즈니스 프로필 최적화</h4>
+                                <p>구글 비즈니스 프로필 소개글과 카테고리를 점검하고 다시 작성해드립니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="비즈니스 프로필 최적화">최적화 콘텐츠 생성</button>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h4>추천형</h4>
-                            <p>주변 명소나 맛집 코스와 연계된 추천글을 생성합니다.</p>
-                            <button class="btn btn-secondary btn-generate-content" data-type="추천">자동 생성</button>
-                        </div>
-                        <div class="card">
-                            <h4>보도자료형</h4>
-                            <p>공식적인 소식이나 신메뉴 출시를 알리는 보도자료를 생성합니다.</p>
-                            <button class="btn btn-secondary btn-generate-content" data-type="보도자료">자동 생성</button>
-                        </div>
-                        <div class="card">
-                            <h4>SNS형</h4>
-                            <p>인스타그램 등 SNS에 적합한 짧고 임팩트 있는 콘텐츠를 생성합니다.</p>
-                            <button class="btn btn-secondary btn-generate-content" data-type="SNS">자동 생성</button>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 30px;">
+                    
+                    <div class="content-section">
+                        <h4>[섹션 2] 지속형 콘텐츠 (계속 쌓아가는 콘텐츠)</h4>
+                        <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">꾸준히 쌓일수록 AI 노출이 늘어납니다.</p>
+                        <div class="content-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                            <div class="card">
+                                <h4>질문뱅크</h4>
+                                <p>고객이 실제로 검색할 질문들을 자동으로 생성하고, 그 중 채택한 질문은 FAQ로 등록됩니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="질문뱅크">질문 10개 생성</button>
+                            </div>
+                            <div class="card">
+                                <h4>지역키워드 추천형</h4>
+                                <p>지역명+업종+특징을 조합한 질문형 콘텐츠로, 주변 명소·코스와 연계해 노출을 높입니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="지역키워드 추천형">자동 생성</button>
+                            </div>
+                            <div class="card">
+                                <h4>전문성 콘텐츠</h4>
+                                <p>업종 전문 지식 콘텐츠로 AI가 신뢰할 수 있는 출처임을 보여줍니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="전문성 콘텐츠">자동 생성</button>
+                            </div>
+                            <div class="card">
+                                <h4>SNS/숏폼 콘텐츠</h4>
+                                <p>인스타그램, 유튜브 숏폼 등에 적합한 짧고 임팩트 있는 콘텐츠를 생성합니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="SNS/숏폼 콘텐츠">자동 생성</button>
+                            </div>
+                            <div class="card">
+                                <h4>보도자료형</h4>
+                                <p>신메뉴 출시나 이벤트 등 공식 소식을 알리는 보도자료를 생성합니다.</p>
+                                <button class="btn btn-secondary btn-generate-content" data-type="보도자료형">자동 생성</button>
+                            </div>
                         </div>
                     </div>
                     <div class="card">
