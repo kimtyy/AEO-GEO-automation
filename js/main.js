@@ -74,6 +74,35 @@ async function refreshDashboard() {
     await loadStoreData();
     await loadMonitoringHistory();
     await loadCompetitorAnalysis();
+    updateQarelScore();
+}
+
+function updateQarelScore() {
+    if (!currentStore) return;
+    
+    // Q: 질문 개수 / 20 * 100
+    let queries = currentStore.queries || [];
+    if (typeof queries === 'string') {
+        try { queries = JSON.parse(queries); } catch(e) { queries = []; }
+    }
+    const qCount = queries.length;
+    const qScore = Math.min(100, Math.round((qCount / 20) * 100));
+    
+    // L: 지역성 (keywords 배열 개수 / 10 * 100)
+    let keywords = currentStore.keywords || [];
+    if (typeof keywords === 'string') {
+        try { keywords = JSON.parse(keywords); } catch(e) { keywords = []; }
+    }
+    const lCount = keywords.length;
+    const lScore = Math.min(100, Math.round((lCount / 10) * 100));
+    
+    // A, R, E (임시 0점)
+    const aScore = 0;
+    const rScore = 0;
+    const eScore = 0;
+    
+    const qarelData = [qScore, aScore, rScore, eScore, lScore];
+    chartService.updateQarelCharts(qarelData);
 }
 
 // 사이드바 네비게이션
@@ -114,6 +143,7 @@ function initNavigation() {
                     radar: [85, 70, 90, 60, 80],
                     bar: [82, 65, 70, 45, 30]
                 });
+                updateQarelScore();
             }
         });
     });
