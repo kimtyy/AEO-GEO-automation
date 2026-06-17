@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1000
+        max_tokens: 4000
       })
     });
 
