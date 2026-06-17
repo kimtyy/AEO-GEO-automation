@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     initSettingsEdit();
     initNewStoreModal();
+    initContentViewModal();
 });
 
 async function initStores() {
@@ -836,6 +837,7 @@ function initContentGeneration() {
 
                 let basePrompt = `당신은 ${category} 분야에서 오랜 경력을 가진 전문가이자 마케팅 카피라이터입니다. 
 다음 매장 정보를 참고해서 지시사항을 작성해주세요.
+중요: 서두나 인사말, 부가 설명 없이 본문만 바로 작성해주세요.
 
 매장 정보: ${storeName}, ${address}, ${category}, ${concept}, 메뉴: ${menus}, 영업시간: ${hoursStr}\n\n`;
 
@@ -897,7 +899,9 @@ function initContentGeneration() {
                         <td>${type}</td>
                         <td>${previewText}</td>
                         <td><span style="color: #f39c12; font-weight: bold;">초안</span></td>
+                        <td><button class="btn btn-secondary btn-view-content" style="padding: 4px 8px; font-size: 11px;">보기</button></td>
                     `;
+                    tr.querySelector('.btn-view-content').dataset.body = encodeURIComponent(generatedContent);
                     tableBody.prepend(tr);
                 }
                 
@@ -1072,6 +1076,51 @@ async function loadCompetitorAnalysis() {
     } catch (error) {
         console.error('Failed to load competitor analysis:', error);
         tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>`;
+    }
+}
+
+function initContentViewModal() {
+    const modal = document.getElementById('content-view-modal');
+    if (!modal) return;
+    
+    const closeBtn1 = document.getElementById('btn-close-content-modal-top');
+    const closeBtn2 = document.getElementById('btn-close-content-modal');
+    
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+    
+    if (closeBtn1) closeBtn1.addEventListener('click', closeModal);
+    if (closeBtn2) closeBtn2.addEventListener('click', closeModal);
+    
+    // 테이블 내 보기 버튼 이벤트 위임
+    const tableBody = document.querySelector('#content-table tbody');
+    if (tableBody) {
+        tableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-view-content')) {
+                const tr = e.target.closest('tr');
+                const dateStr = tr.children[0].textContent;
+                const type = tr.children[1].textContent;
+                const bodyContent = decodeURIComponent(e.target.dataset.body || '');
+                
+                document.getElementById('content-view-title').textContent = type + ' 콘텐츠';
+                document.getElementById('content-view-date').textContent = dateStr;
+                document.getElementById('content-view-body').textContent = bodyContent;
+                
+                modal.style.display = 'flex';
+                
+                // 복사 버튼 이벤트 바인딩
+                const copyBtn = document.getElementById('btn-copy-content');
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(bodyContent).then(() => {
+                        alert('본문이 클립보드에 복사되었습니다.');
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        alert('복사에 실패했습니다.');
+                    });
+                };
+            }
+        });
     }
 }
 

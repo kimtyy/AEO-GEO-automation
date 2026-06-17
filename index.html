@@ -350,6 +350,7 @@
                                     <th>유형</th>
                                     <th>내용 미리보기</th>
                                     <th>상태</th>
+                                    <th>보기</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -563,6 +564,20 @@
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn btn-secondary" id="btn-cancel-modal" style="flex: 1;">취소</button>
                 <button class="btn btn-primary" id="btn-save-new-store" style="flex: 1;">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content View Modal -->
+    <div id="content-view-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content card" style="width: 600px; max-width: 90%; background: white; max-height: 90vh; display: flex; flex-direction: column; position: relative; border-radius: 8px;">
+            <button id="btn-close-content-modal-top" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+            <h3 id="content-view-title" style="margin-top: 0; margin-bottom: 5px;">콘텐츠 보기</h3>
+            <div style="font-size: 13px; color: #666; margin-bottom: 15px;">생성일: <span id="content-view-date"></span></div>
+            <div id="content-view-body" style="flex: 1; overflow-y: auto; white-space: pre-wrap; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; line-height: 1.6; margin-bottom: 20px; min-height: 200px;"></div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-primary" id="btn-copy-content" style="padding: 8px 16px;">복사하기</button>
+                <button class="btn btn-secondary" id="btn-close-content-modal" style="padding: 8px 16px;">닫기</button>
             </div>
         </div>
     </div>
