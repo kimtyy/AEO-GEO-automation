@@ -717,19 +717,38 @@ function initAnalysis() {
                         
                         const aiResponses = await Promise.all(promises);
                         
-                        return aiResponses.map(item => ({
-                            ai_name: item.ai_name,
-                            query: queryLog,
-                            response: item.res.data,
-                            mentioned: Math.random()>0.3,
-                            score: Math.floor(Math.random()*41)+60
-                        }));
+                        return aiResponses.map(item => {
+                            const responseText = item.res.data || '';
+                            const mentioned = responseText.includes(target.name);
+                            let score = 0;
+                            if (mentioned) {
+                                const isHighlighted = responseText.includes(`**${target.name}**`) || 
+                                                      responseText.includes(`"${target.name}"`) || 
+                                                      responseText.includes(`'${target.name}'`) ||
+                                                      /추천|강추|인기|대표|훌륭|최고|맛집|방문|만족/.test(responseText);
+                                if (isHighlighted) {
+                                    score = Math.floor(Math.random() * 21) + 80;
+                                } else {
+                                    score = Math.floor(Math.random() * 20) + 60;
+                                }
+                            } else {
+                                score = Math.floor(Math.random() * 41);
+                            }
+                            return {
+                                ai_name: item.ai_name,
+                                query: queryLog,
+                                response: responseText,
+                                mentioned: mentioned,
+                                score: score
+                            };
+                        });
                     })());
                 }
             }
 
             const allResults = await Promise.all(tasks);
             const flatResults = allResults.flat();
+            console.log("Analysis Results Payload:", flatResults);
 
             clearInterval(progressInterval);
             progressBar.style.width = '100%';
