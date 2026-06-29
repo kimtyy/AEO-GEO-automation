@@ -731,17 +731,10 @@ function initAnalysis() {
                             const mentioned = responseText.includes(target.name);
                             let score = 0;
                             if (mentioned) {
-                                const isHighlighted = responseText.includes(`**${target.name}**`) || 
-                                                      responseText.includes(`"${target.name}"`) || 
-                                                      responseText.includes(`'${target.name}'`) ||
-                                                      /추천|강추|인기|대표|훌륭|최고|맛집|방문|만족/.test(responseText);
-                                if (isHighlighted) {
-                                    score = Math.floor(Math.random() * 21) + 80;
-                                } else {
-                                    score = Math.floor(Math.random() * 20) + 60;
-                                }
-                            } else {
-                                score = Math.floor(Math.random() * 41);
+                                const nameCount = (responseText.match(new RegExp(target.name, 'g')) || []).length;
+                                score += Math.min(nameCount * 20, 60);  // 언급 횟수 (최대 60점)
+                                if (target.address && responseText.includes(target.address.substring(0, 10))) score += 20;  // 주소 포함 시 +20
+                                if (responseText.length > 200) score += 20;  // 상세 답변 시 +20
                             }
                             return {
                                 ai_name: item.ai_name,
