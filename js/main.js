@@ -632,6 +632,8 @@ function initAnalysis() {
     if (!btnAnalyze) return;
 
     btnAnalyze.addEventListener('click', async () => {
+        const isMonitoringMode = document.querySelector('input[name="analysis-mode"]:checked')?.value === 'monitoring';
+        
         // 타겟 설정
         const targets = [];
         document.querySelectorAll('.target-checkbox:checked').forEach(cb => {
@@ -690,13 +692,20 @@ function initAnalysis() {
             for (const target of targets) {
                 for (const q of queries) {
                     let prompt = q;
-                    if (target.isCompetitor) {
-                        const addrInfo = target.address ? `, 위치: ${target.address}` : '';
-                        prompt = `경쟁 업체 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                    if (isMonitoringMode) {
+                        prompt = q;
                     } else {
-                        const addrInfo = target.address ? `, 위치: ${target.address}` : '';
-                        prompt = `우리 매장 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                        if (target.isCompetitor) {
+                            const addrInfo = target.address ? `, 위치: ${target.address}` : '';
+                            prompt = `경쟁 업체 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                        } else {
+                            const addrInfo = target.address ? `, 위치: ${target.address}` : '';
+                            prompt = `우리 매장 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                        }
                     }
+
+                    console.log('📤 전송 프롬프트:', prompt);
+                    console.log('🔧 모드:', isMonitoringMode ? '모니터링' : '콘텐츠생성');
                     
                     const queryLog = target.isCompetitor ? `[경쟁사:${target.name}] ${q}` : q;
                     
