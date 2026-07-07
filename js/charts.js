@@ -51,16 +51,14 @@ const chartService = {
         barChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Claude', 'ChatGPT', 'Gemini', 'Perplexity', 'Grok'],
+                labels: ['Claude', 'ChatGPT', 'Gemini'],
                 datasets: [{
                     label: '언급률 (%)',
-                    data: [82, 65, 70, 45, 30],
+                    data: [0, 0, 0],
                     backgroundColor: [
                         '#185FA5',
                         '#3B6D11',
-                        '#854F0B',
-                        '#607d8b',
-                        '#9e9e9e'
+                        '#854F0B'
                     ],
                     borderWidth: 0,
                     borderRadius: 4

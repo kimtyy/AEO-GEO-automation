@@ -75,6 +75,7 @@ async function refreshDashboard() {
     await loadStoreData();
     await loadMonitoringHistory();
     await loadCompetitorAnalysis();
+    await updateDashboardData();
     updateQarelScore();
 }
 
@@ -106,6 +107,143 @@ function updateQarelScore() {
     chartService.updateQarelCharts(qarelData);
 }
 
+async function updateDashboardData() {
+    if (!currentStore) return;
+    
+    try {
+        // 1. Fetch analysis history & contents in parallel
+        const [history, contents] = await Promise.all([
+            supabaseService.getAnalysisHistory(currentStore.id),
+            supabaseService.getContents(currentStore.id)
+        ]);
+        
+        // 2. Compute KPI values
+        let visibilityScore = 0;
+        let mentionRate = 0;
+        let queriesCount = 0;
+        let nextDateStr = '측정 대기';
+        let contentCount = contents ? contents.length : 0;
+        
+        // Parse queries
+        let queries = currentStore.queries || [];
+        if (typeof queries === 'string') {
+            try { queries = JSON.parse(queries); } catch(e) { queries = []; }
+        }
+        queriesCount = queries.length;
+        
+        let latestGroup = [];
+        if (history && history.length > 0) {
+            const latestTime = history[0].created_at;
+            latestGroup = history.filter(h => h.created_at === latestTime);
+            
+            // 자사 데이터 필터링
+            const selfRows = latestGroup.filter(r => !r.query.includes('[경쟁사:'));
+            
+            if (selfRows.length > 0) {
+                let totalScore = 0;
+                let mentionedCount = 0;
+                selfRows.forEach(r => {
+                    totalScore += Number(r.score) || 0;
+                    if (r.mentioned) mentionedCount++;
+                });
+                visibilityScore = Math.round(totalScore / selfRows.length);
+                mentionRate = Math.round((mentionedCount / selfRows.length) * 100);
+            }
+            
+            // 다음 측정일 계산 (마지막 측정일 + 7일)
+            const latestDate = new Date(latestTime);
+            const nextMeasurementDate = new Date(latestDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            nextMeasurementDate.setHours(0,0,0,0);
+            const diffTime = nextMeasurementDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 0) {
+                nextDateStr = `D-${diffDays}`;
+            } else if (diffDays === 0) {
+                nextDateStr = 'D-Day';
+            } else {
+                nextDateStr = `D+${Math.abs(diffDays)}`;
+            }
+        }
+        
+        // Update KPI Card UI
+        const kpiVis = document.getElementById('kpi-visibility-score');
+        if (kpiVis) kpiVis.textContent = visibilityScore;
+        
+        const kpiMen = document.getElementById('kpi-mention-rate');
+        if (kpiMen) kpiMen.textContent = mentionRate;
+        
+        const kpiQ = document.getElementById('kpi-queries-count');
+        if (kpiQ) kpiQ.textContent = queriesCount;
+        
+        const kpiNext = document.getElementById('kpi-next-date');
+        if (kpiNext) kpiNext.textContent = nextDateStr;
+        
+        // Update Report Card UI
+        const repVis = document.getElementById('report-visibility-score');
+        if (repVis) repVis.textContent = `${visibilityScore}점`;
+        
+        const repMen = document.getElementById('report-mention-rate');
+        if (repMen) repMen.textContent = `${mentionRate}%`;
+        
+        const repCnt = document.getElementById('report-content-count');
+        if (repCnt) repCnt.textContent = `${contentCount}건`;
+        
+        const repNext = document.getElementById('report-next-date');
+        if (repNext) repNext.textContent = nextDateStr;
+        
+        // 3. Update Charts
+        // Radar Chart Data
+        let radarData = [0, 0, 0, 0, 0];
+        if (visibilityScore > 0) {
+            radarData = [
+                visibilityScore,
+                Math.max(0, Math.round(visibilityScore * 0.82)),
+                Math.min(100, Math.round(visibilityScore * 1.06)),
+                Math.max(0, Math.round(visibilityScore * 0.7)),
+                Math.max(0, Math.round(visibilityScore * 0.94))
+            ];
+        }
+        
+        // Bar Chart Data (Claude, ChatGPT, Gemini 언급률)
+        let barData = [0, 0, 0];
+        if (latestGroup.length > 0) {
+            const selfRows = latestGroup.filter(r => !r.query.includes('[경쟁사:'));
+            
+            let c_mentions = 0, c_total = 0;
+            let m_mentions = 0, m_total = 0; // ChatGPT
+            let g_mentions = 0, g_total = 0; // Gemini
+            
+            selfRows.forEach(r => {
+                if (r.ai_name.toLowerCase().includes('claude')) {
+                    c_total++;
+                    if (r.mentioned) c_mentions++;
+                } else if (r.ai_name.toLowerCase().includes('chatgpt')) {
+                    m_total++;
+                    if (r.mentioned) m_mentions++;
+                } else if (r.ai_name.toLowerCase().includes('gemini')) {
+                    g_total++;
+                    if (r.mentioned) g_mentions++;
+                }
+            });
+            
+            barData = [
+                c_total ? Math.round((c_mentions / c_total) * 100) : 0,
+                m_total ? Math.round((m_mentions / m_total) * 100) : 0,
+                g_total ? Math.round((g_mentions / g_total) * 100) : 0
+            ];
+        }
+        
+        chartService.updateCharts({
+            radar: radarData,
+            bar: barData
+        });
+    } catch (e) {
+        console.error('Failed to update dashboard KPIs and charts:', e);
+    }
+}
+
 // 사이드바 네비게이션
 function initNavigation() {
     const menuItems = document.querySelectorAll('#sidebar-menu li, #bottom-menu li:not(.more-menu-btn), #more-menu-list li');
@@ -113,7 +251,7 @@ function initNavigation() {
     const pageTitle = document.getElementById('page-title');
 
     menuItems.forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const targetId = item.getAttribute('data-target');
             if (!targetId) return;
 
@@ -140,10 +278,7 @@ function initNavigation() {
             
             // Re-render charts if dashboard is shown (fixes Chart.js resize issue)
             if (targetId === 'page-dashboard') {
-                chartService.updateCharts({
-                    radar: [85, 70, 90, 60, 80],
-                    bar: [82, 65, 70, 45, 30]
-                });
+                await updateDashboardData();
                 updateQarelScore();
             }
         });
@@ -276,6 +411,52 @@ async function loadStoreData() {
             });
         }
         
+        // Populate AEO Marketing fields
+        const introTextarea = document.getElementById('aeo-intro-textarea');
+        if (introTextarea) introTextarea.value = currentStore.introduction || '';
+
+        const priceRangeInput = document.getElementById('aeo-price-range');
+        if (priceRangeInput) priceRangeInput.value = currentStore.price_range || '';
+        
+        const parkingInput = document.getElementById('aeo-parking');
+        if (parkingInput) parkingInput.value = currentStore.parking || '';
+        
+        const capacityInput = document.getElementById('aeo-capacity');
+        if (capacityInput) capacityInput.value = currentStore.capacity || '';
+        
+        const privateRoomInput = document.getElementById('aeo-private-room');
+        if (privateRoomInput) privateRoomInput.value = currentStore.private_room || '';
+        
+        const storyInput = document.getElementById('aeo-story');
+        if (storyInput) storyInput.value = currentStore.story || '';
+        
+        const targetCustomersInput = document.getElementById('aeo-target-customers');
+        if (targetCustomersInput) targetCustomersInput.value = currentStore.target_customers || '';
+        
+        const localContextInput = document.getElementById('aeo-local-context');
+        if (localContextInput) localContextInput.value = currentStore.local_context || '';
+        
+        const eventsInput = document.getElementById('aeo-events');
+        if (eventsInput) eventsInput.value = currentStore.events || '';
+        
+        const naverUrlInput = document.getElementById('aeo-naver-url');
+        if (naverUrlInput) naverUrlInput.value = currentStore.naver_place_url || '';
+        
+        const naverCurrentInput = document.getElementById('aeo-naver-current');
+        if (naverCurrentInput) naverCurrentInput.value = currentStore.naver_place_current || '';
+
+        const naverOptimizedInput = document.getElementById('aeo-naver-optimized');
+        if (naverOptimizedInput) naverOptimizedInput.value = currentStore.naver_place_optimized || '';
+        
+        const googleUrlInput = document.getElementById('aeo-google-url');
+        if (googleUrlInput) googleUrlInput.value = currentStore.google_biz_url || '';
+        
+        const googleCurrentInput = document.getElementById('aeo-google-current');
+        if (googleCurrentInput) googleCurrentInput.value = currentStore.google_biz_current || '';
+
+        const googleOptimizedInput = document.getElementById('aeo-google-optimized');
+        if (googleOptimizedInput) googleOptimizedInput.value = currentStore.google_biz_optimized || '';
+
         if (typeof renderAnalysisOptions === 'function') {
             await renderAnalysisOptions();
         }
@@ -436,6 +617,143 @@ function initSettingsEdit() {
             } finally {
                 btnSave.textContent = originalText;
                 btnSave.disabled = false;
+            }
+        });
+    }
+
+    // AEO 마케팅 정보 AI 분석 및 저장 연동
+    const btnAnalyzeAeo = document.getElementById('btn-analyze-aeo');
+    const btnSaveAeo = document.getElementById('btn-save-aeo-marketing');
+    const aeoLoading = document.getElementById('aeo-analyze-loading');
+
+    if (btnAnalyzeAeo) {
+        btnAnalyzeAeo.addEventListener('click', async () => {
+            if (!currentStore) return;
+            const introText = document.getElementById('aeo-intro-textarea').value.trim();
+            if (!introText) {
+                alert('우리 가게를 소개하는 글을 먼저 입력해주세요.');
+                return;
+            }
+
+            const originalText = btnAnalyzeAeo.textContent;
+            btnAnalyzeAeo.textContent = 'AI 분석 중...';
+            btnAnalyzeAeo.disabled = true;
+            if (aeoLoading) aeoLoading.style.display = 'block';
+
+            const prompt = `주어진 가게 소개글을 분석하여 다음 14개 항목에 해당하는 마케팅 정보를 JSON 형식으로 추출해주세요.
+소개글에서 명시적으로 언급되지 않은 정보는 빈 문자열("")로 채워주되, naver_place_optimized와 google_biz_optimized는 아래 기준에 따라 최적화된 소개글을 새롭게 생성해 채워주세요.
+중요: 답변에 부연 설명이나 마크다운 백틱 (\`\`\`json ...) 없이 오직 순수한 JSON 객체 텍스트만 출력해야 합니다. 이 텍스트는 JSON.parse()로 바로 변환이 가능해야 합니다.
+
+추출해야 할 JSON의 키와 설명:
+- price_range: 가격대 (예: 1만~2만원대)
+- parking: 주차 정보 (예: 매장 앞 주차 가능)
+- capacity: 수용인원 (예: 80석)
+- private_room: 단체룸 (예: 30인 단체룸 보유)
+- story: 핵심 스토리 (매장의 차별화 포인트를 담은 스토리)
+- target_customers: 타겟 고객 (예: 군인, 가족 모임)
+- local_context: 주변 맥락 (근처 군부대, 골프장, 역 등 위치 특성)
+- events: 진행 중인 이벤트 (예: 군인 장병 방문 시 음료 서비스)
+- naver_place_url: 네이버플레이스 URL
+- naver_place_current: 네이버플레이스 현재 소개글
+- naver_place_optimized: 다음 기준에 맞춰 새로 생성한 네이버플레이스 최적화 소개글:
+  * 500자 이내로 작성
+  * AEO 핵심 요소 포함:
+    ① 구조화된 정보 (위치, 영업시간, 메뉴, 가격, 특징 등)
+    ② 맥락 키워드 (지역명 + 상황 키워드)
+    ③ AI가 사실(fact) 정보로 인용하기 쉬운 객관적인 문장 구조
+    ④ 타겟 고객 맥락 포함
+  * 감성적 미사여구를 배제하고 철저히 정보 위주로 작성
+- google_biz_url: 구글 비즈니스 프로필 URL
+- google_biz_current: 구글 비즈니스 프로필 현재 설명
+- google_biz_optimized: 다음 기준에 맞춰 새로 생성한 구글 비즈니스 프로필 최적화 설명:
+  * 750자 이내로 작성
+  * 동일한 AEO 핵심 요소(구조화 정보, 맥락 키워드, AI 인용 용이성, 타겟 맥락) 포함
+  * 글로벌 AI도 읽기 좋게 영어와 한국어를 적절히 혼용하여 작성
+
+가게 소개글:
+${introText}`;
+
+            try {
+                const response = await apiService.callClaude(prompt);
+                let cleanJsonText = response.data.trim();
+                if (cleanJsonText.startsWith('```')) {
+                    cleanJsonText = cleanJsonText.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+                }
+                const parsed = JSON.parse(cleanJsonText);
+
+                if (parsed.price_range !== undefined) document.getElementById('aeo-price-range').value = parsed.price_range;
+                if (parsed.parking !== undefined) document.getElementById('aeo-parking').value = parsed.parking;
+                if (parsed.capacity !== undefined) document.getElementById('aeo-capacity').value = parsed.capacity;
+                if (parsed.private_room !== undefined) document.getElementById('aeo-private-room').value = parsed.private_room;
+                if (parsed.story !== undefined) document.getElementById('aeo-story').value = parsed.story;
+                if (parsed.target_customers !== undefined) document.getElementById('aeo-target-customers').value = parsed.target_customers;
+                if (parsed.local_context !== undefined) document.getElementById('aeo-local-context').value = parsed.local_context;
+                if (parsed.events !== undefined) document.getElementById('aeo-events').value = parsed.events;
+                if (parsed.naver_place_url !== undefined) document.getElementById('aeo-naver-url').value = parsed.naver_place_url;
+                if (parsed.naver_place_current !== undefined) document.getElementById('aeo-naver-current').value = parsed.naver_place_current;
+                if (parsed.naver_place_optimized !== undefined) document.getElementById('aeo-naver-optimized').value = parsed.naver_place_optimized;
+                if (parsed.google_biz_url !== undefined) document.getElementById('aeo-google-url').value = parsed.google_biz_url;
+                if (parsed.google_biz_current !== undefined) document.getElementById('aeo-google-current').value = parsed.google_biz_current;
+                if (parsed.google_biz_optimized !== undefined) document.getElementById('aeo-google-optimized').value = parsed.google_biz_optimized;
+
+                alert('AI 분석이 완료되었습니다! 상세 필드를 확인 후 저장해주세요.');
+            } catch (e) {
+                console.error(e);
+                alert('AI 분석 중 오류가 발생했습니다: ' + e.message);
+            } finally {
+                btnAnalyzeAeo.textContent = originalText;
+                btnAnalyzeAeo.disabled = false;
+                if (aeoLoading) aeoLoading.style.display = 'none';
+            }
+        });
+    }
+
+    if (btnSaveAeo) {
+        btnSaveAeo.addEventListener('click', async () => {
+            if (!currentStore) return;
+
+            const originalText = btnSaveAeo.textContent;
+            btnSaveAeo.textContent = '저장 중...';
+            btnSaveAeo.disabled = true;
+
+            const updatedData = {
+                introduction: document.getElementById('aeo-intro-textarea').value.trim(),
+                price_range: document.getElementById('aeo-price-range').value.trim(),
+                parking: document.getElementById('aeo-parking').value.trim(),
+                capacity: document.getElementById('aeo-capacity').value.trim(),
+                private_room: document.getElementById('aeo-private-room').value.trim(),
+                story: document.getElementById('aeo-story').value.trim(),
+                target_customers: document.getElementById('aeo-target-customers').value.trim(),
+                local_context: document.getElementById('aeo-local-context').value.trim(),
+                events: document.getElementById('aeo-events').value.trim(),
+                naver_place_url: document.getElementById('aeo-naver-url').value.trim(),
+                naver_place_current: document.getElementById('aeo-naver-current').value.trim(),
+                naver_place_optimized: document.getElementById('aeo-naver-optimized').value.trim(),
+                google_biz_url: document.getElementById('aeo-google-url').value.trim(),
+                google_biz_current: document.getElementById('aeo-google-current').value.trim(),
+                google_biz_optimized: document.getElementById('aeo-google-optimized').value.trim()
+            };
+
+            try {
+                const res = await supabaseService.updateStore(currentStore.id, updatedData);
+                if (res) {
+                    currentStore = { ...currentStore, ...updatedData };
+                    // 갱신된 매장 목록 동기화
+                    const idx = storesList.findIndex(s => s.id === currentStore.id);
+                    if (idx !== -1) {
+                        storesList[idx] = currentStore;
+                    }
+                    alert('AEO 마케팅 정보가 저장되었습니다.');
+                    await loadStoreData();
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('오류가 발생했습니다.');
+            } finally {
+                btnSaveAeo.textContent = originalText;
+                btnSaveAeo.disabled = false;
             }
         });
     }
