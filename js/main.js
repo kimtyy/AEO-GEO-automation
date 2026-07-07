@@ -668,7 +668,7 @@ function initSettingsEdit() {
 - google_biz_optimized: 다음 기준에 맞춰 새로 생성한 구글 비즈니스 프로필 최적화 설명:
   * 750자 이내로 작성
   * 동일한 AEO 핵심 요소(구조화 정보, 맥락 키워드, AI 인용 용이성, 타겟 맥락) 포함
-  * 글로벌 AI도 읽기 좋게 영어와 한국어를 적절히 혼용하여 작성
+  * 기본적으로 한국어 중심으로 작성하되, 매장명이나 메뉴명 등 고유명사만 영문을 괄호 병기하여 작성 (예: 설맥 가평현리점 (Seolmaek Gapyeong Hyeonri), 냉면 (Naengmyeon)). 나머지는 모두 한국어로 작성
 
 가게 소개글:
 ${introText}`;
