@@ -5,6 +5,9 @@ let barChartInstance = null;
 let qarelRadarChartInstance = null;
 let qarelBarChartInstance = null;
 let weeklyTrendChartInstance = null;   // Phase 2
+let miniTrendChartInstance = null;     // Phase 5
+let nicheRadarChartInstance = null;    // Phase 5
+let competitorCompareChartInstance = null; // Phase 5
 
 const chartService = {
     initCharts() {
@@ -13,6 +16,9 @@ const chartService = {
         this.initQarelRadarChart();
         this.initQarelBarChart();
         this.initWeeklyTrendChart();    // Phase 2
+        this.initMiniTrendChart();      // Phase 5
+        this.initNicheRadarChart();     // Phase 5
+        this.initCompetitorCompareChart(); // Phase 5
     },
 
     initRadarChart() {
@@ -260,5 +266,106 @@ const chartService = {
 
         weeklyTrendChartInstance.data.labels = labels;
         weeklyTrendChartInstance.update();
+    },
+
+    // ── Phase 5: 신규 차트 초기화 및 업데이트 ───────────────────
+
+    initMiniTrendChart() {
+        const ctx = document.getElementById('miniTrendChart');
+        if (!ctx) return;
+
+        miniTrendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: '#3B6D11',
+                    borderWidth: 1.5,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 0, max: 100 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+    },
+
+    updateMiniTrendChart(labels, dataPoints) {
+        if (!miniTrendChartInstance) return;
+        miniTrendChartInstance.data.labels = labels;
+        miniTrendChartInstance.data.datasets[0].data = dataPoints;
+        miniTrendChartInstance.update();
+    },
+
+    initNicheRadarChart() {
+        const ctx = document.getElementById('nicheRadarChart');
+        if (!ctx) return;
+
+        nicheRadarChartInstance = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '적합도 점수',
+                    data: [],
+                    backgroundColor: 'rgba(24, 95, 165, 0.15)',
+                    borderColor: 'rgba(24, 95, 165, 1)',
+                    pointBackgroundColor: 'rgba(24, 95, 165, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 100 }
+                }
+            }
+        });
+    },
+
+    updateNicheRadarChart(labels, scores) {
+        if (!nicheRadarChartInstance) return;
+        nicheRadarChartInstance.data.labels = labels;
+        nicheRadarChartInstance.data.datasets[0].data = scores;
+        nicheRadarChartInstance.update();
+    },
+
+    initCompetitorCompareChart() {
+        const ctx = document.getElementById('competitorCompareChart');
+        if (!ctx) return;
+
+        competitorCompareChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Claude', 'ChatGPT', 'Gemini'],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+    },
+
+    updateCompetitorCompareChart(datasets) {
+        if (!competitorCompareChartInstance) return;
+        competitorCompareChartInstance.data.datasets = datasets;
+        competitorCompareChartInstance.update();
     }
 };

@@ -105,14 +105,20 @@ const supabaseService = {
     /**
      * 분석 이력 가져오기
      * @param {string} storeId 
+     * @param {string} mode - 'monitoring' 또는 'content' (선택)
      */
-    async getAnalysisHistory(storeId) {
+    async getAnalysisHistory(storeId, mode = null) {
         try {
-            const { data, error } = await supabaseClient
+            let query = supabaseClient
                 .from('analysis_results')
                 .select('*')
-                .eq('store_id', storeId)
-                .order('created_at', { ascending: false });
+                .eq('store_id', storeId);
+            
+            if (mode) {
+                query = query.eq('mode', mode);
+            }
+            
+            const { data, error } = await query.order('created_at', { ascending: false });
             if (error) throw error;
             return data;
         } catch (error) {

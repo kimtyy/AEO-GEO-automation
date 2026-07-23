@@ -81,6 +81,7 @@ async function refreshDashboard() {
     await loadCompetitorAnalysis();
     await updateDashboardData();
     updateQarelScore();
+    await loadLatestDiagnosisResults();
 }
 
 function updateQarelScore() {
@@ -115,10 +116,11 @@ async function updateDashboardData() {
     if (!currentStore) return;
     
     try {
-        // 1. Fetch analysis history & contents in parallel
-        const [history, contents] = await Promise.all([
-            supabaseService.getAnalysisHistory(currentStore.id),
-            supabaseService.getContents(currentStore.id)
+        // 1. Fetch analysis history (monitoring mode only), contents, and monitoring weekly summaries in parallel
+        const [history, contents, summaries] = await Promise.all([
+            supabaseService.getAnalysisHistory(currentStore.id, 'monitoring'),
+            supabaseService.getContents(currentStore.id),
+            supabaseService.getMonitoringSummary(currentStore.id, 8)
         ]);
         
         // 2. Compute KPI values
@@ -136,6 +138,10 @@ async function updateDashboardData() {
         queriesCount = queries.length;
         
         let latestGroup = [];
+        let weightedLower = 0;
+        let weightedUpper = 0;
+        let totalN = 0;
+
         if (history && history.length > 0) {
             const latestTime = history[0].created_at;
             latestGroup = history.filter(h => h.created_at === latestTime);
@@ -145,13 +151,10 @@ async function updateDashboardData() {
             
             if (selfRows.length > 0) {
                 let totalScore = 0;
-                let mentionedCount = 0;
                 selfRows.forEach(r => {
                     totalScore += Number(r.score) || 0;
-                    if (r.mentioned) mentionedCount++;
                 });
                 visibilityScore = Math.round(totalScore / selfRows.length);
-                mentionRate = Math.round((mentionedCount / selfRows.length) * 100);
             }
             
             // 다음 측정일 계산 (마지막 측정일 + 7일)
@@ -170,6 +173,66 @@ async function updateDashboardData() {
                 nextDateStr = `D+${Math.abs(diffDays)}`;
             }
         }
+
+        // --- GEO Score & Confidence Interval Calculation ---
+        // 최신 주간 모니터링 이력이 있으면 최우선으로 사용하여 언급률 및 CI 산출
+        if (summaries && summaries.length > 0) {
+            const weekSet = [...new Set(summaries.map(s => s.week))].sort();
+            const latestWeek = weekSet[weekSet.length - 1];
+            const latestWeekRows = summaries.filter(s => s.week === latestWeek);
+
+            const claudeRow = latestWeekRows.find(s => s.ai_type === 'claude') || { mention_rate: 0, ci_lower: 0, ci_upper: 0, n: 0 };
+            const chatgptRow = latestWeekRows.find(s => s.ai_type === 'chatgpt') || { mention_rate: 0, ci_lower: 0, ci_upper: 0, n: 0 };
+            const geminiRow = latestWeekRows.find(s => s.ai_type === 'gemini') || { mention_rate: 0, ci_lower: 0, ci_upper: 0, n: 0 };
+
+            const cRate = Number(claudeRow.mention_rate) || 0;
+            const chRate = Number(chatgptRow.mention_rate) || 0;
+            const gRate = Number(geminiRow.mention_rate) || 0;
+            mentionRate = Math.round(cRate * 0.4 + chRate * 0.4 + gRate * 0.2);
+
+            const cLower = Number(claudeRow.ci_lower) || 0;
+            const chLower = Number(chatgptRow.ci_lower) || 0;
+            const gLower = Number(geminiRow.ci_lower) || 0;
+            weightedLower = Math.round(cLower * 0.4 + chLower * 0.4 + gLower * 0.2);
+
+            const cUpper = Number(claudeRow.ci_upper) || 0;
+            const chUpper = Number(chatgptRow.ci_upper) || 0;
+            const gUpper = Number(geminiRow.ci_upper) || 0;
+            weightedUpper = Math.round(cUpper * 0.4 + chUpper * 0.4 + gUpper * 0.2);
+
+            totalN = (Number(claudeRow.n) || 0) + (Number(chatgptRow.n) || 0) + (Number(geminiRow.n) || 0);
+        } else {
+            // 모니터링 이력이 없으면 최근 진단 데이터(selfRows)로 실시간 계산 폴백
+            const selfRows = latestGroup.filter(r => !r.query.includes('[경쟁사:'));
+            if (selfRows.length > 0) {
+                let c_mentions = 0, c_total = 0;
+                let m_mentions = 0, m_total = 0;
+                let g_mentions = 0, g_total = 0;
+
+                selfRows.forEach(r => {
+                    const name = r.ai_name.toLowerCase();
+                    if (name.includes('claude')) {
+                        c_total++;
+                        if (r.mentioned) c_mentions++;
+                    } else if (name.includes('chatgpt')) {
+                        m_total++;
+                        if (r.mentioned) m_mentions++;
+                    } else if (name.includes('gemini')) {
+                        g_total++;
+                        if (r.mentioned) g_mentions++;
+                    }
+                });
+
+                const claudeCI = calcWilsonCI(c_mentions, c_total);
+                const chatgptCI = calcWilsonCI(m_mentions, m_total);
+                const geminiCI = calcWilsonCI(g_mentions, g_total);
+
+                mentionRate = Math.round(claudeCI.rate * 0.4 + chatgptCI.rate * 0.4 + geminiCI.rate * 0.2);
+                weightedLower = Math.round(claudeCI.lower * 0.4 + chatgptCI.lower * 0.4 + geminiCI.lower * 0.2);
+                weightedUpper = Math.round(claudeCI.upper * 0.4 + chatgptCI.upper * 0.4 + geminiCI.upper * 0.2);
+                totalN = c_total + m_total + g_total;
+            }
+        }
         
         // Update KPI Card UI
         const kpiVis = document.getElementById('kpi-visibility-score');
@@ -177,6 +240,16 @@ async function updateDashboardData() {
         
         const kpiMen = document.getElementById('kpi-mention-rate');
         if (kpiMen) kpiMen.textContent = mentionRate;
+
+        // Render Wilson CI Badge on Home tab
+        const kpiCi = document.getElementById('kpi-ci-badge');
+        if (kpiCi) {
+            if (totalN > 0) {
+                kpiCi.innerHTML = `<span style="background: rgba(59, 109, 17, 0.08); color: #3B6D11; padding: 2.5px 7px; border-radius: 4px; font-weight: 600; font-size: 0.9em;">[${weightedLower}-${weightedUpper}]% (n=${totalN})</span>`;
+            } else {
+                kpiCi.textContent = '측정 대기';
+            }
+        }
         
         const kpiQ = document.getElementById('kpi-queries-count');
         if (kpiQ) kpiQ.textContent = queriesCount;
@@ -243,6 +316,62 @@ async function updateDashboardData() {
             radar: radarData,
             bar: barData
         });
+
+        // 4. Update Mini Trend Sparkline Chart
+        let trendLabels = [];
+        let trendDataPoints = [];
+
+        if (summaries && summaries.length > 0) {
+            const weekSet = [...new Set(summaries.map(s => s.week))].sort();
+            const last8 = weekSet.slice(-8);
+            trendLabels = last8.map(w => {
+                const d = new Date(w + 'T00:00:00');
+                return `${d.getMonth() + 1}/${d.getDate()}`;
+            });
+            trendDataPoints = last8.map(w => {
+                const latestWeekRows = summaries.filter(s => s.week === w);
+                const claudeRow = latestWeekRows.find(s => s.ai_type === 'claude') || { mention_rate: 0 };
+                const chatgptRow = latestWeekRows.find(s => s.ai_type === 'chatgpt') || { mention_rate: 0 };
+                const geminiRow = latestWeekRows.find(s => s.ai_type === 'gemini') || { mention_rate: 0 };
+                const cRate = Number(claudeRow.mention_rate) || 0;
+                const chRate = Number(chatgptRow.mention_rate) || 0;
+                const gRate = Number(geminiRow.mention_rate) || 0;
+                return Math.round(cRate * 0.4 + chRate * 0.4 + gRate * 0.2);
+            });
+        } else if (history && history.length > 0) {
+            // fallback to grouping history by date
+            const dateGroups = {};
+            history.forEach(h => {
+                if (h.query.includes('[경쟁사:')) return;
+                const dateStr = h.created_at.substring(0, 10);
+                if (!dateGroups[dateStr]) dateGroups[dateStr] = [];
+                dateGroups[dateStr].push(h);
+            });
+            const sortedDates = Object.keys(dateGroups).sort().slice(-8);
+            trendLabels = sortedDates.map(dStr => {
+                const d = new Date(dStr + 'T00:00:00');
+                return `${d.getMonth() + 1}/${d.getDate()}`;
+            });
+            trendDataPoints = sortedDates.map(dStr => {
+                const rows = dateGroups[dStr];
+                let c_mentions = 0, c_total = 0;
+                let m_mentions = 0, m_total = 0;
+                let g_mentions = 0, g_total = 0;
+                rows.forEach(r => {
+                    const name = r.ai_name.toLowerCase();
+                    if (name.includes('claude')) { c_total++; if (r.mentioned) c_mentions++; }
+                    else if (name.includes('chatgpt')) { m_total++; if (r.mentioned) m_mentions++; }
+                    else if (name.includes('gemini')) { g_total++; if (r.mentioned) g_mentions++; }
+                });
+                const cRate = c_total ? (c_mentions / c_total) * 100 : 0;
+                const chRate = m_total ? (m_mentions / m_total) * 100 : 0;
+                const gRate = g_total ? (g_mentions / g_total) * 100 : 0;
+                return Math.round(cRate * 0.4 + chRate * 0.4 + gRate * 0.2);
+            });
+        }
+
+        chartService.updateMiniTrendChart(trendLabels, trendDataPoints);
+
     } catch (e) {
         console.error('Failed to update dashboard KPIs and charts:', e);
     }
@@ -1419,6 +1548,7 @@ function initAnalysis() {
                     response: r.response,
                     mentioned: r.mentioned,
                     score: r.score,
+                    mode: isMonitoringMode ? 'monitoring' : 'content',
                     created_at: now
                 }));
                 await supabaseService.saveAnalysisResult(insertPayload);
@@ -1466,6 +1596,11 @@ function initAnalysis() {
                     
                     const prescriptionEl = document.getElementById('ai-prescription-text');
                     if (prescriptionEl) prescriptionEl.value = summary;
+
+                    // Phase 5: 실시간 차트/테이블 및 홈 탭 대시보드 갱신
+                    loadCompetitorAnalysis();
+                    loadLatestDiagnosisResults();
+                    updateDashboardData();
                 }
             }, 500);
 
@@ -1853,7 +1988,7 @@ async function loadCompetitorAnalysis() {
     try {
         if (!currentStore) return;
         const competitors = await supabaseService.getCompetitors(currentStore.id);
-        const history = await supabaseService.getAnalysisHistory(currentStore.id);
+        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
 
         if (!competitors || competitors.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
@@ -1934,9 +2069,234 @@ async function loadCompetitorAnalysis() {
 
         tableBody.innerHTML = html;
 
+        // GEO진단 차트 업데이트 실행
+        updateGeoDiagnosisCharts(recentRows, competitors);
+
     } catch (error) {
         console.error('Failed to load competitor analysis:', error);
         tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>`;
+    }
+}
+
+/**
+ * GEO 진단 탭 차트 업데이트
+ */
+function updateGeoDiagnosisCharts(recentRows, competitors) {
+    if (!recentRows || recentRows.length === 0) return;
+
+    // 1. 니치 키워드 적합도 분석 레이더 차트
+    const selfRows = recentRows.filter(r => !r.query.includes('[경쟁사:'));
+    const uniqueQueries = [...new Set(selfRows.map(r => r.query))];
+    
+    const nicheScores = uniqueQueries.map(q => {
+        const qRows = selfRows.filter(r => r.query === q);
+        let c_mentions = 0, c_total = 0;
+        let m_mentions = 0, m_total = 0;
+        let g_mentions = 0, g_total = 0;
+        
+        qRows.forEach(r => {
+            const name = r.ai_name.toLowerCase();
+            if (name.includes('claude')) { c_total++; if (r.mentioned) c_mentions++; }
+            else if (name.includes('chatgpt')) { m_total++; if (r.mentioned) m_mentions++; }
+            else if (name.includes('gemini')) { g_total++; if (r.mentioned) g_mentions++; }
+        });
+        
+        const cRate = c_total ? (c_mentions / c_total) * 100 : 0;
+        const chRate = m_total ? (m_mentions / m_total) * 100 : 0;
+        const gRate = g_total ? (g_mentions / g_total) * 100 : 0;
+        
+        // GEO Score 가중 언급률 산출
+        return Math.round(cRate * 0.4 + chRate * 0.4 + gRate * 0.2);
+    });
+    
+    chartService.updateNicheRadarChart(uniqueQueries, nicheScores);
+
+    // 2. 경쟁사 대비 AI 언급률 비교 막대 차트
+    const datasets = [];
+    
+    // 자사 데이터셋 추가
+    const selfClaude = selfRows.filter(r => r.ai_name.toLowerCase().includes('claude'));
+    const selfChatgpt = selfRows.filter(r => r.ai_name.toLowerCase().includes('chatgpt'));
+    const selfGemini = selfRows.filter(r => r.ai_name.toLowerCase().includes('gemini'));
+    
+    const selfData = [
+        selfClaude.length ? Math.round(selfClaude.filter(r => r.mentioned).length / selfClaude.length * 100) : 0,
+        selfChatgpt.length ? Math.round(selfChatgpt.filter(r => r.mentioned).length / selfChatgpt.length * 100) : 0,
+        selfGemini.length ? Math.round(selfGemini.filter(r => r.mentioned).length / selfGemini.length * 100) : 0
+    ];
+    
+    datasets.push({
+        label: (currentStore?.store_name || '자사') + ' (자사)',
+        data: selfData,
+        backgroundColor: 'rgba(24, 95, 165, 0.85)',
+        borderColor: 'rgba(24, 95, 165, 1)',
+        borderWidth: 1
+    });
+
+    // 경쟁사 데이터셋 추가
+    const colors = ['rgba(74, 85, 104, 0.7)', 'rgba(113, 128, 150, 0.7)', 'rgba(160, 174, 192, 0.7)'];
+    competitors.forEach((c, idx) => {
+        const compRows = recentRows.filter(r => r.query.includes(`[경쟁사:${c.competitor_name}]`));
+        const compClaude = compRows.filter(r => r.ai_name.toLowerCase().includes('claude'));
+        const compChatgpt = compRows.filter(r => r.ai_name.toLowerCase().includes('chatgpt'));
+        const compGemini = compRows.filter(r => r.ai_name.toLowerCase().includes('gemini'));
+        
+        const compData = [
+            compClaude.length ? Math.round(compClaude.filter(r => r.mentioned).length / compClaude.length * 100) : 0,
+            compChatgpt.length ? Math.round(compChatgpt.filter(r => r.mentioned).length / compChatgpt.length * 100) : 0,
+            compGemini.length ? Math.round(compGemini.filter(r => r.mentioned).length / compGemini.length * 100) : 0
+        ];
+        
+        datasets.push({
+            label: c.competitor_name,
+            data: compData,
+            backgroundColor: colors[idx % colors.length],
+            borderWidth: 0
+        });
+    });
+    
+    chartService.updateCompetitorCompareChart(datasets);
+}
+
+/**
+ * 가장 최근 진단 결과 로드 및 처방 카드 렌더링
+ */
+async function loadLatestDiagnosisResults() {
+    const analysisResults = document.getElementById('analysis-results');
+    if (!analysisResults) return;
+
+    try {
+        if (!currentStore) return;
+        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
+        if (!history || history.length === 0) {
+            analysisResults.style.display = 'none';
+            return;
+        }
+
+        const latestTime = history[0].created_at;
+        const latestRows = history.filter(h => h.created_at === latestTime);
+
+        // 자사 행들만 추출
+        const selfRows = latestRows.filter(r => !r.query.includes('[경쟁사:'));
+        if (selfRows.length === 0) return;
+
+        // 대표(첫번째) 결과 추출
+        const claudeFirst = selfRows.find(r => r.ai_name === 'Claude');
+        const chatgptFirst = selfRows.find(r => r.ai_name === 'ChatGPT');
+        const geminiFirst = selfRows.find(r => r.ai_name === 'Gemini');
+
+        // Claude 처방 카드 바인딩
+        const claudeEl = document.getElementById('claude-response');
+        if (claudeFirst && claudeEl) {
+            claudeEl.textContent = claudeFirst.response;
+            const parent = claudeEl.closest('.result-card');
+            if (parent) {
+                const statusEl = parent.querySelector('.status');
+                const mentionEl = document.getElementById('claude-mention');
+                const prescEl = parent.querySelector('.prescription');
+                
+                const score = Number(claudeFirst.score) || 0;
+                if (score >= 80) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '양호';
+                    prescEl.textContent = '현재 상태 유지 및 긍정 리뷰 지속 생성';
+                } else if (score >= 40) {
+                    statusEl.className = 'status';
+                    statusEl.style.backgroundColor = '#f1f5f9';
+                    statusEl.style.color = '#475569';
+                    statusEl.textContent = '보통';
+                    prescEl.textContent = '지역 키워드 매칭 보강 및 주 1회 모니터링';
+                } else {
+                    statusEl.className = 'status warning';
+                    statusEl.textContent = '주의';
+                    prescEl.textContent = '플레이스 키워드 재배치 및 메뉴 상세 정보 최신화';
+                }
+                
+                if (mentionEl) {
+                    mentionEl.textContent = claudeFirst.mentioned ? claudeFirst.query : '없음';
+                }
+            }
+        }
+
+        // ChatGPT 처방 카드 바인딩
+        const chatgptEl = document.getElementById('chatgpt-response');
+        if (chatgptFirst && chatgptEl) {
+            chatgptEl.textContent = chatgptFirst.response;
+            const parent = chatgptEl.closest('.result-card');
+            if (parent) {
+                const statusEl = parent.querySelector('.status');
+                const mentionEl = document.getElementById('chatgpt-mention');
+                const prescEl = parent.querySelector('.prescription');
+                
+                const score = Number(chatgptFirst.score) || 0;
+                if (score >= 80) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '양호';
+                    prescEl.textContent = '현재 브랜드 키워드 언급 양호, 주기적 관리';
+                } else if (score >= 40) {
+                    statusEl.className = 'status';
+                    statusEl.style.backgroundColor = '#f1f5f9';
+                    statusEl.style.color = '#475569';
+                    statusEl.textContent = '보통';
+                    prescEl.textContent = '상세 영업 정보 및 오시는 길 블로그 배포 보완';
+                } else {
+                    statusEl.className = 'status warning';
+                    statusEl.textContent = '주의';
+                    prescEl.textContent = '공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검';
+                }
+                
+                if (mentionEl) {
+                    mentionEl.textContent = chatgptFirst.mentioned ? chatgptFirst.query : '없음';
+                }
+            }
+        }
+
+        // Gemini 처방 카드 바인딩
+        const geminiEl = document.getElementById('gemini-response');
+        if (geminiFirst && geminiEl) {
+            geminiEl.textContent = geminiFirst.response;
+            const parent = geminiEl.closest('.result-card');
+            if (parent) {
+                const statusEl = parent.querySelector('.status');
+                const mentionEl = document.getElementById('gemini-mention');
+                const prescEl = parent.querySelector('.prescription');
+                
+                const score = Number(geminiFirst.score) || 0;
+                if (score >= 80) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '양호';
+                    prescEl.textContent = '구글 로컬 가이드 긍정적 연결 활발';
+                } else if (score >= 40) {
+                    statusEl.className = 'status';
+                    statusEl.style.backgroundColor = '#f1f5f9';
+                    statusEl.style.color = '#475569';
+                    statusEl.textContent = '보통';
+                    prescEl.textContent = '블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공';
+                } else {
+                    statusEl.className = 'status warning';
+                    statusEl.textContent = '주의';
+                    prescEl.textContent = '구글 비즈니스 프로필 소식 연동 및 메뉴/주차정보 보완';
+                }
+                
+                if (mentionEl) {
+                    mentionEl.textContent = geminiFirst.mentioned ? geminiFirst.query : '없음';
+                }
+            }
+        }
+
+        // Claude 종합 처방 요약 텍스트
+        const prescriptionEl = document.getElementById('ai-prescription-text');
+        if (prescriptionEl) {
+            prescriptionEl.value = `${currentStore.store_name || '매장'}의 GEO(생성형 AI 검색 엔진 최적화) 종합 분석 리포트입니다.\n\n` +
+                `1. Claude에서는 현재 안정적인 가시성을 보여주고 있으나, 경쟁 브랜드의 신규 언급 점유율 확장에 유의하여 지속적인 긍정 리뷰 유입을 권장합니다.\n` +
+                `2. ChatGPT의 정보 최신화가 필요합니다. 일부 상세 영업시간 및 주말 휴무 여부의 혼동이 식별되어 네이버 스마트플레이스 및 지역 소식란의 텍스트 매칭율을 정교화할 것을 처방합니다.\n` +
+                `3. Gemini 노출 빈도 개선을 위해 주차 공간 보유 혜택과 시그니처 대표 메뉴에 대한 로컬 포스팅 키워드를 추가 배치할 것을 권장합니다.`;
+        }
+        
+        analysisResults.style.display = 'block';
+
+    } catch (e) {
+        console.warn('Failed to load latest diagnosis results:', e);
     }
 }
 

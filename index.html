@@ -55,9 +55,17 @@
                             <h3>AI 가시성 점수</h3>
                             <div class="value" style="color: #185FA5;"><span id="kpi-visibility-score">85</span><span class="unit">점</span></div>
                         </div>
-                        <div class="kpi-card">
-                            <h3>AI 언급률</h3>
-                            <div class="value" style="color: #3B6D11;"><span id="kpi-mention-rate">72</span><span class="unit">%</span></div>
+                        <div class="kpi-card" style="display: flex; justify-content: space-between; align-items: center; position: relative; gap: 10px;">
+                            <div>
+                                <h3>AI 언급률 (GEO Score)</h3>
+                                <div class="value" style="color: #3B6D11;"><span id="kpi-mention-rate">—</span><span class="unit">%</span></div>
+                                <div id="kpi-ci-badge" style="font-size: 0.76em; color: var(--text-muted); margin-top: 5px; font-weight: 500;">
+                                    측정 대기
+                                </div>
+                            </div>
+                            <div style="width: 110px; height: 50px; flex-shrink: 0;">
+                                <canvas id="miniTrendChart"></canvas>
+                            </div>
                         </div>
                         <div class="kpi-card">
                             <h3>모니터링 질문 수</h3>
@@ -261,39 +269,65 @@
                     </div>
 
                     <div class="analysis-results" id="analysis-results" style="display: none;">
-                        <h3 class="section-title">분석 결과 및 자동 진단 처방</h3>
+                        <h3 class="section-title">📊 GEO 상세 진단 리포트</h3>
+                        
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <!-- 니치 키워드 적합도 레이더 -->
+                            <div class="card" style="flex: 1; min-width: 320px; height: 360px; display: flex; flex-direction: column;">
+                                <h4>🎯 니치 키워드 적합도 분석</h4>
+                                <p style="font-size: 0.82em; color: var(--text-muted); margin-bottom: 12px; margin-top: 5px;">
+                                    등록된 질문별로 AI 추천 점수를 매칭하여 니치 검색어의 적합도를 시각화합니다.
+                                </p>
+                                <div style="flex: 1; position: relative; height: 260px;">
+                                    <canvas id="nicheRadarChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- 경쟁사 AI 언급률 비교 -->
+                            <div class="card" style="flex: 1.2; min-width: 350px; height: 360px; display: flex; flex-direction: column;">
+                                <h4>⚔️ 경쟁사 대비 AI 언급률 비교</h4>
+                                <p style="font-size: 0.82em; color: var(--text-muted); margin-bottom: 12px; margin-top: 5px;">
+                                    자사와 경쟁사 간의 주요 AI 채널별 언급률 현황 비교 차트입니다.
+                                </p>
+                                <div style="flex: 1; position: relative; height: 260px;">
+                                    <canvas id="competitorCompareChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 class="section-title">💊 AI 채널별 처방 카드</h3>
                         <div class="result-grid">
                             <div class="card result-card">
-                                <div class="ai-name">Claude</div>
-                                <div class="status success">양호</div>
+                                <div class="ai-name" style="color: #185FA5; font-weight: bold; font-size: 1.15em;">Claude</div>
+                                <div class="status success" style="margin-top: 5px; margin-bottom: 10px; display: inline-block;">양호</div>
                                 <p class="diagnosis" id="claude-response">"가평 현리 단체 회식" 키워드에 대해 가장 높은 추천율을 보임.</p>
-                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
                                     <strong>매장 언급 질문:</strong> <span id="claude-mention">가평 현리 단체 회식 장소 추천해줘</span>
                                 </div>
-                                <div class="prescription">현재 상태 유지 및 긍정 리뷰 지속 생성</div>
+                                <div class="prescription" style="font-weight: 600; color: #185FA5; background: #f0f6fc; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #185FA5;">현재 상태 유지 및 긍정 리뷰 지속 생성</div>
                             </div>
                             <div class="card result-card">
-                                <div class="ai-name">ChatGPT</div>
-                                <div class="status warning">주의</div>
+                                <div class="ai-name" style="color: #3B6D11; font-weight: bold; font-size: 1.15em;">ChatGPT</div>
+                                <div class="status warning" style="margin-top: 5px; margin-bottom: 10px; display: inline-block;">주의</div>
                                 <p class="diagnosis" id="chatgpt-response">영업시간 및 주차 정보에 대한 환각(Hallucination) 현상 일부 발견.</p>
-                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
                                     <strong>매장 언급 질문:</strong> <span id="chatgpt-mention">가평 현리 밥술집 어디 있어?</span>
                                 </div>
-                                <div class="prescription">공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검</div>
+                                <div class="prescription" style="font-weight: 600; color: #3B6D11; background: #f4faf0; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #3B6D11;">공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검</div>
                             </div>
                             <div class="card result-card">
-                                <div class="ai-name">Gemini</div>
-                                <div class="status">보통</div>
+                                <div class="ai-name" style="color: #854F0B; font-weight: bold; font-size: 1.15em;">Gemini</div>
+                                <div class="status" style="margin-top: 5px; margin-bottom: 10px; display: inline-block; background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">보통</div>
                                 <p class="diagnosis" id="gemini-response">신메뉴(눈꽃빙수)에 대한 인지도가 낮음.</p>
-                                <div class="mention-result" style="margin: 10px 0; font-size: 0.9em; color: #555;">
+                                <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
                                     <strong>매장 언급 질문:</strong> <span id="gemini-mention">없음</span>
                                 </div>
-                                <div class="prescription">블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공</div>
+                                <div class="prescription" style="font-weight: 600; color: #854F0B; background: #faf4ed; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #854F0B;">블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공</div>
                             </div>
                         </div>
                         <div class="card" style="margin-top: 20px;">
-                            <h4>AI 진단 처방 (Claude 생성)</h4>
-                            <textarea id="ai-prescription-text" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;" rows="4" readonly></textarea>
+                            <h4>✏️ AI 종합 진단 처방 (Claude 생성)</h4>
+                            <textarea id="ai-prescription-text" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; resize: vertical; margin-top: 10px; font-size: 14px; line-height: 1.6;" rows="6" readonly></textarea>
                         </div>
                     </div>
                 </section>
