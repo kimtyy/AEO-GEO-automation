@@ -209,5 +209,144 @@ const supabaseService = {
             console.error('Error deleting competitor:', error);
             return false;
         }
+    },
+
+    // ── Phase 2: 모니터링 신뢰구간 ──────────────────────────────
+
+    /**
+     * monitoring_results 배치 INSERT
+     * @param {Array} rows - [{ store_id, question, ai_type, mentioned, run_index, week }]
+     */
+    async saveMonitoringResult(rows) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('monitoring_results')
+                .insert(rows)
+                .select();
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error saving monitoring results:', error);
+            return null;
+        }
+    },
+
+    /**
+     * monitoring_summaries UPSERT (store_id+week+ai_type 기준 중복 시 덮어쓰기)
+     * @param {Array} rows - [{ store_id, week, ai_type, mention_rate, ci_lower, ci_upper, n }]
+     */
+    async upsertMonitoringSummary(rows) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('monitoring_summaries')
+                .upsert(rows, { onConflict: 'store_id,week,ai_type' })
+                .select();
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error upserting monitoring summaries:', error);
+            return null;
+        }
+    },
+
+    /**
+     * monitoring_summaries 조회 (최근 N주)
+     * @param {string} storeId
+     * @param {number} weeks - 조회 주차 수 (기본 8주)
+     */
+    async getMonitoringSummary(storeId, weeks = 8) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('monitoring_summaries')
+                .select('*')
+                .eq('store_id', storeId)
+                .order('week', { ascending: false })
+                .limit(weeks * 3);   // AI 3개 × 주차
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching monitoring summaries:', error);
+            return [];
+        }
+    },
+
+    // ── Phase 4: 채널 배포 (오토파일럿) ──────────────────────────
+
+    /**
+     * 배포 대기 아이템 저장
+     * @param {Object} data - { store_id, content_id, channel, status, created_at }
+     */
+    async saveDistributionItem(data) {
+        try {
+            const { data: result, error } = await supabaseClient
+                .from('distribution_queue')
+                .insert([data])
+                .select();
+            if (error) throw error;
+            console.log('Distribution item saved successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Error saving distribution item:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 특정 매장의 배포 대기 큐 및 이력 조회 (contents 테이블 조인)
+     * @param {string} storeId
+     */
+    async getDistributionQueue(storeId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('distribution_queue')
+                .select(`
+                    id,
+                    store_id,
+                    content_id,
+                    channel,
+                    status,
+                    created_at,
+                    published_at,
+                    contents (
+                        title,
+                        body,
+                        niche_keyword,
+                        evidence_units
+                    )
+                `)
+                .eq('store_id', storeId)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching distribution queue:', error);
+            return [];
+        }
+    },
+
+    /**
+     * 배포 아이템 상태 변경 (발행 완료 시 published_at 동시 갱신)
+     * @param {string} id
+     * @param {string} status
+     */
+    async updateDistributionStatus(id, status) {
+        try {
+            const updateData = { status };
+            if (status === '발행완료') {
+                updateData.published_at = new Date().toISOString();
+            }
+            const { data: result, error } = await supabaseClient
+                .from('distribution_queue')
+                .update(updateData)
+                .eq('id', id)
+                .select();
+            if (error) throw error;
+            console.log('Distribution status updated successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Error updating distribution status:', error);
+            return null;
+        }
     }
 };
+

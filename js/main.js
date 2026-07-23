@@ -13,9 +13,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await initStores();
     
+    initSettingsWizard();   // Phase 1: AI 자동완성 마법사
+    initAdvancedToggle();   // 고급 설정 접기/펼치기
+    initMonitoringTab();    // Phase 2: 모니터링 신뢰구간
     initSettingsEdit();
     initNewStoreModal();
     initContentViewModal();
+    initDistributionTab();   // Phase 4: 채널 배포 (오토파일럿)
 });
 
 async function initStores() {
@@ -281,6 +285,17 @@ function initNavigation() {
                 await updateDashboardData();
                 updateQarelScore();
             }
+            // 모니터링 탭 진입 시: 최신 주간 추세 로드 + 비용 경고 업데이트
+            if (targetId === 'page-monitoring') {
+                loadMonitoringTrend();
+                updateMonitoringCostWarning();
+            }
+            // 채널 배포 탭 진입 시: 배포 대기 목록 로드
+            if (targetId === 'page-distribution') {
+                if (typeof loadDistributionQueue === 'function') {
+                    await loadDistributionQueue();
+                }
+            }
         });
     });
 }
@@ -457,6 +472,15 @@ async function loadStoreData() {
         const googleOptimizedInput = document.getElementById('aeo-google-optimized');
         if (googleOptimizedInput) googleOptimizedInput.value = currentStore.google_biz_optimized || '';
 
+        // Phase 3 리스티클 니치 드롭다운 및 목록 갱신
+        updateListicleNicheSelect();
+        await loadListiclesList();
+
+        // Phase 4 배포 대기 목록 로드
+        if (typeof loadDistributionQueue === 'function') {
+            await loadDistributionQueue();
+        }
+
         if (typeof renderAnalysisOptions === 'function') {
             await renderAnalysisOptions();
         }
@@ -465,6 +489,318 @@ async function loadStoreData() {
     }
 }
 
+
+// ================================================================
+// 설정 탭 — AI 자동완성 마법사 (Phase 1)
+// ================================================================
+
+/**
+ * 설정 탭 마법사 초기화
+ */
+function initSettingsWizard() {
+    const btnStart    = document.getElementById('btn-autocomplete-start');
+    const btnBack     = document.getElementById('btn-wizard-back');
+    const btnSaveWiz  = document.getElementById('btn-wizard-save');
+    const storeInput  = document.getElementById('wizard-store-name');
+
+    if (!btnStart) return;
+
+    // 기존 매장이 있으면 매장명 미리 채우기
+    if (currentStore && currentStore.store_name) {
+        storeInput.value = currentStore.store_name;
+    }
+
+    // Enter 키로도 자동완성 트리거
+    storeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnStart.click();
+    });
+
+    btnStart.addEventListener('click', async () => {
+        const storeName = storeInput.value.trim();
+        if (!storeName) {
+            storeInput.focus();
+            storeInput.style.borderColor = '#e74c3c';
+            setTimeout(() => storeInput.style.borderColor = '', 1500);
+            return;
+        }
+        await runAutoComplete(storeName);
+    });
+
+    btnBack.addEventListener('click', () => {
+        setWizardStep(1);
+        document.getElementById('save-success-banner').classList.remove('show');
+    });
+
+    btnSaveWiz.addEventListener('click', async () => {
+        await saveWizardResult();
+    });
+}
+
+/**
+ * 고급 설정 섹션 접기/펼치기
+ */
+function initAdvancedToggle() {
+    const toggle = document.getElementById('settings-advanced-toggle');
+    const body   = document.getElementById('settings-advanced-body');
+    const arrow  = document.getElementById('settings-advanced-arrow');
+    if (!toggle || !body) return;
+
+    toggle.addEventListener('click', () => {
+        const isOpen = body.classList.toggle('open');
+        if (arrow) arrow.textContent = isOpen ? '▼' : '▶';
+    });
+}
+
+/**
+ * Step 인디케이터 업데이트
+ * @param {number} step - 1 또는 2
+ */
+function setWizardStep(step) {
+    const steps  = document.querySelectorAll('.wizard-step');
+    const panels = document.querySelectorAll('.wizard-panel');
+
+    steps.forEach(s => {
+        const n = parseInt(s.dataset.step);
+        s.classList.remove('active', 'done');
+        if (n < step)  s.classList.add('done');
+        if (n === step) s.classList.add('active');
+    });
+
+    panels.forEach(p => p.classList.remove('active'));
+    const target = document.getElementById(`wizard-panel-${step}`);
+    if (target) target.classList.add('active');
+}
+
+/**
+ * Claude API를 통해 매장명 → 자동완성 데이터 생성
+ * @param {string} storeName
+ */
+async function runAutoComplete(storeName) {
+    const btnStart   = document.getElementById('btn-autocomplete-start');
+    const loadingBox = document.getElementById('ai-loading-box');
+    const loadingTxt = document.getElementById('ai-loading-text');
+
+    // 로딩 UI 시작
+    btnStart.disabled = true;
+    loadingBox.classList.add('show');
+    loadingTxt.textContent = `"${storeName}" 분석 중... 잠시만 기다려주세요.`;
+
+    const prompt = `
+당신은 한국 소상공인 GEO(Generative Engine Optimization) 전문가입니다.
+아래 매장명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
+
+매장명: ${storeName}
+
+출력 형식 (JSON만, 다른 텍스트 없이):
+{
+  "niche_keywords": [
+    "키워드1",
+    "키워드2",
+    "키워드3",
+    "키워드4",
+    "키워드5",
+    "키워드6",
+    "키워드7"
+  ],
+  "seenow_slug": "영문-소문자-슬러그",
+  "competitors": [
+    {"name": "경쟁사명1", "address": "지역 주소"},
+    {"name": "경쟁사명2", "address": "지역 주소"},
+    {"name": "경쟁사명3", "address": "지역 주소"}
+  ],
+  "monitoring_queries": [
+    "질문1",
+    "질문2",
+    ...
+    "질문50"
+  ]
+}
+
+규칙:
+- niche_keywords: 매장명에서 추출한 지역+업종+상황 조합 키워드 7개
+  예: "가평 현리 단체회식", "가평 군인 회식", "경기 북부 한식", "가평 맥주집", "현리 단체룸", "가평 고기집", "맹호부대 근처 식당"
+- seenow_slug: 매장명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
+- competitors: 동일 지역·업종 경쟁사 3개 (실제 존재할 법한 이름, 불확실하면 "[지역] [업종] A/B/C" 형식)
+- monitoring_queries: AI(ChatGPT/Claude/Gemini)에 물어볼 법한 실제 검색 질문 50개
+  (지역+업종+상황 조합, "~추천해줘", "~어디가 좋아?", "~괜찮은 곳" 형식)
+  질문이 정확히 50개여야 합니다.
+`.trim();
+
+    try {
+        const result = await apiService.callClaude(prompt);
+        const text = result.content || result.text || result.response || '';
+
+        // JSON 파싱 (마크다운 코드블록 제거)
+        let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        // 첫 번째 { 부터 마지막 } 까지 추출
+        const start = jsonStr.indexOf('{');
+        const end   = jsonStr.lastIndexOf('}');
+        if (start !== -1 && end !== -1) {
+            jsonStr = jsonStr.substring(start, end + 1);
+        }
+
+        const data = JSON.parse(jsonStr);
+        window._wizardData = { storeName, ...data };
+
+        renderWizardStep2(data);
+        setWizardStep(2);
+
+    } catch (err) {
+        console.error('AutoComplete error:', err);
+        alert(`AI 자동완성 중 오류가 발생했습니다.\n${err.message}\n\n매장명을 더 구체적으로 입력하거나 잠시 후 다시 시도해주세요.`);
+    } finally {
+        btnStart.disabled = false;
+        loadingBox.classList.remove('show');
+    }
+}
+
+/**
+ * Step 2 UI 렌더링
+ * @param {Object} data - Claude가 반환한 자동완성 데이터
+ */
+function renderWizardStep2(data) {
+    // 1) 니치 키워드 칩 렌더링
+    const chipsEl = document.getElementById('niche-keyword-chips');
+    if (chipsEl && data.niche_keywords) {
+        chipsEl.innerHTML = data.niche_keywords.map((kw, i) => `
+            <label class="niche-keyword-chip checked" id="chip-${i}">
+                <input type="checkbox" value="${escapeHtml(kw)}" checked>
+                <span class="chip-check">✓</span>
+                ${escapeHtml(kw)}
+            </label>
+        `).join('');
+
+        // 칩 토글 이벤트
+        chipsEl.querySelectorAll('.niche-keyword-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const cb = chip.querySelector('input[type="checkbox"]');
+                cb.checked = !cb.checked;
+                chip.classList.toggle('checked', cb.checked);
+                chip.querySelector('.chip-check').textContent = cb.checked ? '✓' : '';
+            });
+        });
+    }
+
+    // 2) Seenow URL 슬러그
+    const slugEl = document.getElementById('seenow-url-slug');
+    if (slugEl && data.seenow_slug) {
+        slugEl.value = data.seenow_slug;
+    }
+
+    // 3) 경쟁사 후보
+    const compEl = document.getElementById('competitor-candidates');
+    if (compEl && data.competitors) {
+        compEl.innerHTML = data.competitors.map((c, i) => `
+            <div class="competitor-candidate-item">
+                <input type="checkbox" id="comp-${i}" value="${escapeHtml(c.name)}" data-address="${escapeHtml(c.address || '')}" checked>
+                <label for="comp-${i}">
+                    <strong>${escapeHtml(c.name)}</strong>
+                    ${c.address ? `<span style="color:#888; font-size:0.85rem;"> — ${escapeHtml(c.address)}</span>` : ''}
+                </label>
+            </div>
+        `).join('');
+    }
+
+    // 4) 모니터링 질문 미리보기
+    const qListEl  = document.getElementById('queries-preview-list');
+    const qBadgeEl = document.getElementById('queries-count-badge');
+    if (qListEl && data.monitoring_queries) {
+        const qs = data.monitoring_queries;
+        qListEl.innerHTML = qs.map(q => `<li>${escapeHtml(q)}</li>`).join('');
+        if (qBadgeEl) qBadgeEl.textContent = `— ${qs.length}개 생성됨`;
+    }
+}
+
+/**
+ * Step 2 → Supabase 저장
+ */
+async function saveWizardResult() {
+    const btnSave = document.getElementById('btn-wizard-save');
+    if (!currentStore) {
+        alert('저장할 매장이 선택되어 있지 않습니다. 상단 매장 선택기를 먼저 확인해주세요.');
+        return;
+    }
+
+    btnSave.disabled = true;
+    btnSave.textContent = '저장 중...';
+
+    try {
+        // 선택된 니치 키워드 수집
+        const selectedKeywords = [];
+        document.querySelectorAll('#niche-keyword-chips input[type="checkbox"]:checked').forEach(cb => {
+            selectedKeywords.push(cb.value);
+        });
+
+        // Seenow 슬러그
+        const slug = document.getElementById('seenow-url-slug').value.trim();
+
+        // Supabase stores 업데이트
+        const updateData = {
+            niche_keywords: selectedKeywords,
+            seenow_url: slug ? `seenow.kr/${slug}` : ''
+        };
+
+        // 모니터링 질문 병합 (기존 + 신규, 중복 제거)
+        const data = window._wizardData || {};
+        if (data.monitoring_queries && data.monitoring_queries.length > 0) {
+            let existingQueries = currentStore.queries || [];
+            if (typeof existingQueries === 'string') {
+                try { existingQueries = JSON.parse(existingQueries); } catch(e) { existingQueries = []; }
+            }
+            const merged = Array.from(new Set([...existingQueries, ...data.monitoring_queries]));
+            updateData.queries = merged;
+        }
+
+        const res = await supabaseService.updateStore(currentStore.id, updateData);
+        if (!res) throw new Error('Supabase 업데이트 실패');
+
+        // 선택된 경쟁사 저장 (기존 경쟁사 제거 후 재삽입)
+        const selectedComps = [];
+        document.querySelectorAll('#competitor-candidates input[type="checkbox"]:checked').forEach(cb => {
+            selectedComps.push({ name: cb.value, address: cb.dataset.address || '' });
+        });
+
+        for (const comp of selectedComps) {
+            await supabaseService.addCompetitor(currentStore.id, comp.name, comp.address);
+        }
+
+        // currentStore 업데이트
+        Object.assign(currentStore, updateData);
+
+        // 저장 성공 UI
+        document.getElementById('save-success-banner').classList.add('show');
+        // Step 3 인디케이터
+        const steps = document.querySelectorAll('.wizard-step');
+        steps.forEach(s => s.classList.remove('active'));
+        steps.forEach(s => s.classList.add('done'));
+
+        await loadStoreData(); // 고급 설정 섹션 리로드
+
+    } catch (err) {
+        console.error('Wizard save error:', err);
+        alert(`저장 중 오류가 발생했습니다.\n${err.message}`);
+    } finally {
+        btnSave.disabled = false;
+        btnSave.textContent = '💾 설정 저장';
+    }
+}
+
+/**
+ * HTML 특수문자 이스케이프 헬퍼
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ================================================================
+// (기존) 설정 탭 고급 수정
+// ================================================================
 function initSettingsEdit() {
     const btnEdit = document.getElementById('btn-edit-store-info');
     const btnSave = document.getElementById('btn-save-settings');
@@ -1145,135 +1481,303 @@ function initAnalysis() {
 }
 
 
+// ================================================================
+// Phase 3 — 콘텐츠 생성 (제3자 리스티클 중심)
+// ================================================================
+
+/**
+ * 리스티클 콘텐츠 생성 탭 초기화
+ */
 function initContentGeneration() {
-    const btns = document.querySelectorAll('.btn-generate-content');
-    const tableBody = document.querySelector('#content-table tbody');
-    
-    btns.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            if (!currentStore) {
-                alert('먼저 매장을 선택해주세요.');
-                return;
+    const nicheSelect = document.getElementById('listicle-niche-select');
+    const btnSuggest  = document.getElementById('btn-suggest-titles');
+    const btnGenerate = document.getElementById('btn-generate-listicle');
+    const suggestList = document.getElementById('title-suggestions-container');
+    const loadingBox  = document.getElementById('listicle-loading-box');
+    const loadingText = document.getElementById('listicle-loading-text');
+
+    if (!nicheSelect || !btnSuggest || !btnGenerate) return;
+
+    // 1. 니치 키워드 드롭다운 변경 이벤트
+    nicheSelect.addEventListener('change', () => {
+        suggestList.style.display = 'none';
+        suggestList.innerHTML = '';
+        btnGenerate.disabled = true;
+    });
+
+    // 2. 제목 추천받기 버튼 클릭 이벤트
+    btnSuggest.addEventListener('click', async () => {
+        const nicheKeyword = nicheSelect.value;
+        if (!nicheKeyword) {
+            alert('타겟 니치 키워드를 선택해주세요.');
+            nicheSelect.focus();
+            return;
+        }
+
+        btnSuggest.disabled = true;
+        loadingBox.style.display = 'flex';
+        loadingText.textContent = `"${nicheKeyword}" 타겟으로 기사 제목 추천 후보를 생성 중입니다...`;
+        suggestList.style.display = 'none';
+
+        try {
+            const prompt = `당신은 지역 맛집 및 핫플레이스 정보를 전문으로 다루는 지역 여행 매거진 기자입니다.
+니치 키워드인 "${nicheKeyword}"에 맞추어 제3자 매체가 객관적으로 추천하는 큐레이션 기사(리스티클)의 매력적인 제목 후보 5개를 생성해주세요.
+제목은 독자의 클릭률을 높이고 AI가 자연스럽게 인용하기 좋은 형식이어야 합니다.
+
+출력 포맷 (반드시 아래의 단순 JSON 배열 포맷만 출력하고 다른 설명 문장은 제외하세요):
+[
+  "제목 후보 1",
+  "제목 후보 2",
+  "제목 후보 3",
+  "제목 후보 4",
+  "제목 후보 5"
+]`;
+            const result = await apiService.callClaude(prompt);
+            const text = result.content || result.text || result.response || result.data || '';
+            
+            let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+            const start = jsonStr.indexOf('[');
+            const end   = jsonStr.lastIndexOf(']');
+            if (start !== -1 && end !== -1) {
+                jsonStr = jsonStr.substring(start, end + 1);
             }
-            
-            const type = btn.getAttribute('data-type');
-            const originalText = btn.textContent;
-            btn.textContent = '생성 중...';
-            btn.disabled = true;
-            
-            try {
-                const category = currentStore.category || "일반 음식점";
-                const storeName = currentStore.store_name || currentStore.brand || "";
-                const address = currentStore.address || "";
-                const concept = currentStore.concept || "";
-                let hoursStr = "";
-                if (typeof currentStore.hours === 'object') {
-                    try { hoursStr = JSON.stringify(currentStore.hours); } catch(e) {}
-                } else {
-                    hoursStr = currentStore.hours || "";
-                }
-                const menus = currentStore.menus || "정보 없음";
+            const titles = JSON.parse(jsonStr);
 
-                let basePrompt = `당신은 ${category} 분야에서 오랜 경력을 가진 전문가이자 마케팅 카피라이터입니다. 
-다음 매장 정보를 참고해서 지시사항을 작성해주세요.
-중요: 서두나 인사말, 부가 설명 없이 본문만 바로 작성해주세요.
-
-매장 정보: ${storeName}, ${address}, ${category}, ${concept}, 메뉴: ${menus}, 영업시간: ${hoursStr}\n\n`;
-
-                let typeInstruction = "";
-                switch(type) {
-                    case '플레이스 최적화':
-                        typeInstruction = "네이버플레이스에 등록할 업체 소개글을 AI가 사실 정보로 인용하기 좋게 구조화된 형태로 작성해주세요. 300자 이내.";
-                        break;
-                    case '비즈니스 프로필 최적화':
-                        typeInstruction = "구글 비즈니스 프로필에 등록할 업체 소개글을 작성해주세요. 250자 이내.";
-                        break;
-                    case '질문뱅크':
-                        typeInstruction = `이 매장과 관련해서 고객이 실제로 검색할 만한 질문과 그에 대한 답변 10쌍을 만들어주세요. 
-질문은 '[지역명] [업종] 추천해줘' 같은 자연스러운 검색 형태로 작성해주세요.
-
-답변 작성 시 다음을 반드시 지켜주세요:
-
-1. 각 질문이 실제로 묻고 있는 핵심 의도를 먼저 파악할 것 (위치를 묻는지, 분위기를 묻는지, 메뉴를 묻는지, 영업시간을 묻는지, 단체 모임 가능 여부를 묻는지 등)
-2. 답변은 그 질문의 핵심 의도에 맞는 정보로 구성할 것. 질문에서 묻지 않은 정보(예: 영업시간을 묻지 않았는데 영업시간을 답변에 넣는 것)는 억지로 끼워넣지 말 것
-3. 매장 정보 중 다음 항목들을 질문의 의도에 맞게 골고루 활용할 것:
-   - 위치/주소
-   - 영업시간
-   - 대표 메뉴 (구체적인 메뉴명)
-   - 단체룸/좌석 규모
-   - 매장 컨셉과 특징 (예: 눈꽃맥주 전문점, 밥술집, 40년 경력 한식명장 레시피 등)
-   - 주차 가능 여부
-4. 질문 10개를 만들 때도, 한쪽 정보(예: 영업시간이나 위치)에만 몰리지 않도록 다양한 주제(메뉴, 분위기, 단체모임, 가격대, 특징 등)로 질문을 분산해서 만들 것
-
-형식:
-Q1. [질문]
-A1. [답변]`;
-                        break;
-                    case '지역키워드 추천형':
-                        typeInstruction = "지역명+업종+특징을 조합한 질문형 콘텐츠를 작성해주세요. 주변 명소나 코스와 연계해서 400자 정도로 자연스럽게 추천하는 글 형태로 작성해주세요.";
-                        break;
-                    case '전문성 콘텐츠':
-                        typeInstruction = "이 업종과 관련된 전문 지식을 다루는 콘텐츠를 작성해주세요. 고객이 신뢰할 수 있는 전문가의 글처럼, 실용적인 팁을 포함해 400자 정도로 작성해주세요.";
-                        break;
-                    case 'SNS/숏폼 콘텐츠':
-                        typeInstruction = "인스타그램이나 짧은 영상에 쓸 캡션을 작성해주세요. 짧고 임팩트 있게, 해시태그 5개를 포함해서 100자 이내로 작성해주세요.";
-                        break;
-                    case '보도자료형':
-                        typeInstruction = "신메뉴 출시나 이벤트를 알리는 보도자료 형식의 글을 작성해주세요. 공식적인 톤으로 300자 정도 작성해주세요.";
-                        break;
-                    default:
-                        typeInstruction = "해당 매장을 홍보하는 짧은 글을 작성해주세요.";
-                }
-
-                const finalPrompt = basePrompt + typeInstruction;
-
-                // API 호출
-                const response = await apiService.callClaude(finalPrompt);
-                const generatedContent = response.data;
+            if (Array.isArray(titles) && titles.length > 0) {
+                suggestList.innerHTML = titles.map((title, index) => `
+                    <label class="title-suggestion-item" for="title-radio-${index}">
+                        <input type="radio" name="listicle-title-option" id="title-radio-${index}" value="${escapeHtml(title)}">
+                        <span>${escapeHtml(title)}</span>
+                    </label>
+                `).join('');
                 
-                // 데이터 구성
-                const dateStr = new Date().toLocaleDateString();
-                const formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
-                const title = `${type} - ${formattedDate}`;
-                const previewText = generatedContent.substring(0, 50) + (generatedContent.length > 50 ? '...' : '');
-                
-                // Supabase 저장
-                await supabaseService.saveContent({
-                    store_id: currentStore.id,
-                    type: type,
-                    title: title,
-                    body: generatedContent,
-                    preview: previewText,
-                    status: 'draft',
-                    created_at: new Date().toISOString()
+                // 라디오 클릭 시 본문 생성 버튼 활성화
+                suggestList.querySelectorAll('input[name="listicle-title-option"]').forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        btnGenerate.disabled = false;
+                    });
                 });
-                
-                // 테이블에 즉시 추가
-                if (tableBody) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${dateStr}</td>
-                        <td>${type}</td>
-                        <td>${previewText}</td>
-                        <td><span style="color: #f39c12; font-weight: bold;">초안</span></td>
-                        <td><button class="btn btn-secondary btn-view-content" style="padding: 4px 8px; font-size: 11px;">보기</button></td>
-                    `;
-                    tr.querySelector('.btn-view-content').dataset.body = encodeURIComponent(generatedContent);
-                    tableBody.prepend(tr);
-                }
-                
-                // 성공 알림 (선택적)
-                // alert(`${type} 생성이 완료되었습니다.`);
-            } catch (error) {
-                console.error('Content generation error:', error);
-                alert('콘텐츠 생성 중 오류가 발생했습니다.');
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
+
+                suggestList.style.display = 'flex';
+            } else {
+                throw new Error('제목 추천 형식이 맞지 않습니다.');
             }
-        });
+        } catch (err) {
+            console.error('Suggest title error:', err);
+            alert('제목 추천을 가져오는 도중 오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            btnSuggest.disabled = false;
+            loadingBox.style.display = 'none';
+        }
+    });
+
+    // 3. 본문 생성하기 버튼 클릭 이벤트
+    btnGenerate.addEventListener('click', async () => {
+        const nicheKeyword = nicheSelect.value;
+        const selectedTitle = document.querySelector('input[name="listicle-title-option"]:checked')?.value;
+        if (!nicheKeyword || !selectedTitle) {
+            alert('니치 키워드와 기사 제목을 모두 확정해주세요.');
+            return;
+        }
+
+        btnGenerate.disabled = true;
+        btnSuggest.disabled = true;
+        nicheSelect.disabled = true;
+        loadingBox.style.display = 'flex';
+        loadingText.textContent = '선택하신 제목을 토대로 4대 증거유닛과 객관성 검증을 거친 리스티클 기사를 작성하고 있습니다...';
+
+        try {
+            await generateListicle(selectedTitle, nicheKeyword);
+            alert('기사가 성공적으로 생성되어 초안으로 보관되었습니다.');
+            
+            // 폼 초기화
+            suggestList.style.display = 'none';
+            suggestList.innerHTML = '';
+            btnGenerate.disabled = true;
+        } catch (err) {
+            console.error('Generate listicle error:', err);
+            alert('본문 기사 생성 도중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            btnGenerate.disabled = false;
+            btnSuggest.disabled = false;
+            nicheSelect.disabled = false;
+            loadingBox.style.display = 'none';
+        }
     });
 }
+
+/**
+ * 니치 키워드 드롭다운 리스트 갱신
+ */
+function updateListicleNicheSelect() {
+    const nicheSelect = document.getElementById('listicle-niche-select');
+    if (!nicheSelect) return;
+
+    if (!currentStore) {
+        nicheSelect.innerHTML = '<option value="">-- 매장을 먼저 선택해주세요 --</option>';
+        return;
+    }
+
+    let niches = currentStore.niche_keywords || [];
+    if (typeof niches === 'string') {
+        try { niches = JSON.parse(niches); } catch(e) { niches = []; }
+    }
+
+    if (niches.length > 0) {
+        nicheSelect.innerHTML = `<option value="">-- 니치 키워드를 선택하세요 (총 ${niches.length}개) --</option>` +
+            niches.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    } else {
+        nicheSelect.innerHTML = '<option value="">-- [주의] 설정 마법사에서 니치 키워드를 먼저 생성해주세요 --</option>';
+    }
+}
+
+/**
+ * 리스티클 본문 기사 생성 및 데이터베이스 저장
+ * @param {string} title 기사 제목
+ * @param {string} nicheKeyword 니치 키워드
+ */
+async function generateListicle(title, nicheKeyword) {
+    if (!currentStore) return;
+
+    const storeName = currentStore.store_name || '';
+    const category = currentStore.category || '';
+    const address = currentStore.address || '';
+    const concept = currentStore.concept || '';
+    const priceRange = currentStore.price_range || '';
+    const parking = currentStore.parking || '';
+    const capacity = currentStore.capacity || '';
+    const privateRoom = currentStore.private_room || '';
+    const story = currentStore.story || '';
+
+    const systemPrompt = `당신은 지역 맛집과 숨겨진 명소를 냉철하고 통찰력 있게 큐레이션하는 권위 있는 지역 전문 매거진 기자입니다.
+절대 노골적인 단일 매장 홍보글이 아니며, 독자들에게 정보를 제공하는 객관적인 큐레이션 기사 형태로 작성되어야 합니다.
+
+기사 작성 정보:
+- 대상 니치 검색 키워드: ${nicheKeyword}
+- 매칭 기사 제목: ${title}
+- 우리 매장 정보: 명칭: ${storeName}, 업종: ${category}, 주소: ${address}, 특징/컨셉: ${concept}, 가격대: ${priceRange}, 주차: ${parking}, 좌석: ${capacity}, 독립룸: ${privateRoom}, 매장스토리: ${story}
+
+[기사 작성 가이드라인]
+1. 제3자 객관적 관점:
+   - 기사는 추천 가이드 형태이어야 하며 반드시 타 매장 후보군들도 함께 큐레이션(비교 기술) 하세요.
+   - 단, 우리 매장(${storeName})을 전체 리스티클에서 가장 추천도가 높은 주요 매장으로 강조해 배치하되, 객관성과 매체 신뢰도를 높이기 위해 우리 매장(${storeName})에 대한 사소한 아쉬운 점이나 단점도 1가지 이상 유의미하게 솔직히 서술해야 합니다. (예: 인기가 많아 식사 피크 타임 대기가 있다거나 골목 안쪽에 위치해 처음 찾기 헷갈린다 등)
+
+2. 4대 증거유닛(Evidence Units) 의무 포함:
+   기사 본문 내용에 다음 4대 증거가 독자에게 객관적 사실로 전달될 수 있도록 자연스럽게 작성해야 합니다.
+   ① 수치/통계 (Statistics): 평점, 가입 수치, 수용 규모 등 정확한 숫자 서술 (예: 네이버 평점 4.85점 또는 단체 50석 보유 등)
+   ② 인용구 (Quotes): 실제 방문 고객이나 관계자의 구체적 한줄 평 (예: "~라는 평을 받는다")
+   ③ 출처 (Sources): 통계의 기반 출처 명시 (예: "가평군 통계자료에 따르면" 또는 "네이버 방문자리뷰 분석 결과")
+   ④ 비교 설명 (Comparison): 인근 경쟁 매장 등 대비 우리 매장의 강력한 차별점 (예: "인근 B식당과 달리 단독 룸이 있어 방해받지 않는다")
+
+[출력 포맷 가이드라인]
+반드시 아래의 단순 JSON 객체 구조로만 출력하고, 마크다운 코드블록 외의 일체의 대화식이나 안내 인삿말은 제외해주세요:
+{
+  "body": "기사 본문 전체 마크다운 내용",
+  "evidence_units": {
+    "statistics": "본문에 삽입된 수치/통계 문장",
+    "quote": "본문에 삽입된 인용구 문장",
+    "source": "본문에 삽입된 출처 문장",
+    "comparison": "본문에 삽입된 비교 설명 문장"
+  }
+}`;
+
+    const response = await apiService.callClaude(systemPrompt);
+    const content = response.content || response.text || response.response || response.data || '';
+
+    // JSON 파싱
+    let jsonStr = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const start = jsonStr.indexOf('{');
+    const end   = jsonStr.lastIndexOf('}');
+    if (start !== -1 && end !== -1) {
+        jsonStr = jsonStr.substring(start, end + 1);
+    }
+    const data = JSON.parse(jsonStr);
+
+    const previewText = data.body.substring(0, 80) + (data.body.length > 80 ? '...' : '');
+
+    // Supabase contents 저장
+    const insertPayload = {
+        store_id: currentStore.id,
+        type: '제3자 리스티클 기사',
+        title: title,
+        body: data.body,
+        preview: previewText,
+        status: 'draft',
+        content_type: 'listicle',
+        evidence_units: data.evidence_units,
+        niche_keyword: nicheKeyword,
+        created_at: new Date().toISOString()
+    };
+
+    const result = await supabaseService.saveContent(insertPayload);
+    if (result && result.length > 0) {
+        const contentId = result[0].id;
+        const channels = ['naver_blog', 'instagram', 'seenow', 'google_business'];
+        for (const chan of channels) {
+            await supabaseService.saveDistributionItem({
+                store_id: currentStore.id,
+                content_id: contentId,
+                channel: chan,
+                status: '대기',
+                created_at: new Date().toISOString()
+            });
+        }
+    }
+    await loadListiclesList();
+}
+
+/**
+ * 리스티클 생성된 목록 데이터 로드 및 테이블 렌더링
+ */
+async function loadListiclesList() {
+    const tableBody = document.getElementById('listicle-table-body');
+    if (!tableBody) return;
+
+    if (!currentStore) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 25px; color: #999;">매장을 먼저 선택해주세요.</td></tr>';
+        return;
+    }
+
+    try {
+        const contents = await supabaseService.getContents(currentStore.id);
+        const listicles = contents.filter(c => c.content_type === 'listicle' || c.type === '제3자 리스티클 기사');
+
+        if (listicles.length > 0) {
+            tableBody.innerHTML = listicles.map(c => {
+                const dateStr = new Date(c.created_at).toLocaleDateString('ko-KR');
+                const statusBadge = c.status === 'published' 
+                    ? '<span style="color: #27ae60; font-weight: bold;">발행 완료</span>' 
+                    : '<span style="color: #f39c12; font-weight: bold;">초안</span>';
+
+                // 증거유닛 데이터 임베딩을 위해 dataset 보관
+                const evDataStr = encodeURIComponent(JSON.stringify(c.evidence_units || {}));
+                
+                return `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td style="font-weight: 600; text-align: left;">${escapeHtml(c.title)}</td>
+                        <td><span class="ci-badge" style="font-size: 0.8rem;">${escapeHtml(c.niche_keyword || '없음')}</span></td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-view-content" 
+                                    style="padding: 4px 8px; font-size: 11px;" 
+                                    data-body="${encodeURIComponent(c.body)}"
+                                    data-title="${escapeHtml(c.title)}"
+                                    data-date="${dateStr}"
+                                    data-evidence="${evDataStr}">보기</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 25px; color: #999;">생성된 리스티클 콘텐츠가 없습니다. 니치 키워드를 선택해 첫 리스티클 기사를 발행해보세요!</td></tr>';
+        }
+    } catch (e) {
+        console.error('Failed to load listicles list:', e);
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 25px; color: red;">목록을 불러오는 중 오류가 발생했습니다.</td></tr>';
+    }
+}
+
 
 function initReportGeneration() {
     const btn = document.getElementById('btn-generate-report');
@@ -1451,19 +1955,42 @@ function initContentViewModal() {
     if (closeBtn2) closeBtn2.addEventListener('click', closeModal);
     
     // 테이블 내 보기 버튼 이벤트 위임
-    const tableBody = document.querySelector('#content-table tbody');
+    const tableBody = document.getElementById('listicle-table-body');
     if (tableBody) {
         tableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-view-content')) {
-                const tr = e.target.closest('tr');
-                const dateStr = tr.children[0].textContent;
-                const type = tr.children[1].textContent;
-                const bodyContent = decodeURIComponent(e.target.dataset.body || '');
+            const btn = e.target.closest('.btn-view-content');
+            if (btn) {
+                const title = btn.dataset.title || '제3자 리스티클 기사';
+                const dateStr = btn.dataset.date || '';
+                const bodyContent = decodeURIComponent(btn.dataset.body || '');
+                const evDataRaw = btn.dataset.evidence;
                 
-                document.getElementById('content-view-title').textContent = type + ' 콘텐츠';
+                document.getElementById('content-view-title').textContent = title;
                 document.getElementById('content-view-date').textContent = dateStr;
                 document.getElementById('content-view-body').textContent = bodyContent;
                 
+                // 증거유닛 파싱 및 바인딩
+                const evContainer = document.getElementById('content-view-evidence');
+                if (evContainer && evDataRaw) {
+                    try {
+                        const ev = JSON.parse(decodeURIComponent(evDataRaw));
+                        if (ev && Object.keys(ev).length > 0) {
+                            document.getElementById('ev-stat').textContent = ev.statistics || '미포함';
+                            document.getElementById('ev-quote').textContent = ev.quote || '미포함';
+                            document.getElementById('ev-source').textContent = ev.source || '미포함';
+                            document.getElementById('ev-compare').textContent = ev.comparison || '미포함';
+                            evContainer.style.display = 'block';
+                        } else {
+                            evContainer.style.display = 'none';
+                        }
+                    } catch (err) {
+                        console.warn('Evidence parse error:', err);
+                        evContainer.style.display = 'none';
+                    }
+                } else if (evContainer) {
+                    evContainer.style.display = 'none';
+                }
+
                 modal.style.display = 'flex';
                 
                 // 복사 버튼 이벤트 바인딩
@@ -1480,4 +2007,753 @@ function initContentViewModal() {
         });
     }
 }
+
+
+// ================================================================
+// Phase 2 — 모니터링 신뢰구간 (Wilson Score)
+// ================================================================
+
+/**
+ * 모니터링 탭 콘트롤 전체 초기화
+ */
+function initMonitoringTab() {
+    const btnStart = document.getElementById('btn-monitoring-start');
+    const btnAbort = document.getElementById('btn-monitoring-abort');
+    if (!btnStart) return;
+
+    // 옵션 변경 시 비용 경고 실시간 업데이트
+    document.querySelectorAll('input[name="monitoring-repeat"]').forEach(r =>
+        r.addEventListener('change', updateMonitoringCostWarning)
+    );
+    ['claude', 'chatgpt', 'gemini'].forEach(ai => {
+        const el = document.getElementById(`monitoring-ai-${ai}`);
+        if (el) el.addEventListener('change', updateMonitoringCostWarning);
+    });
+
+    btnStart.addEventListener('click', async () => {
+        await runMonitoringCycle();
+    });
+
+    btnAbort.addEventListener('click', () => {
+        window._monitoringAbort = true;
+        btnAbort.textContent = '↻ 중단 완료 대기...';
+        btnAbort.disabled = true;
+    });
+}
+
+/**
+ * 모니터링 탭 진입 시 기존 주간 추세 로드
+ */
+async function loadMonitoringTrend() {
+    if (!currentStore) return;
+    try {
+        const summaries = await supabaseService.getMonitoringSummary(currentStore.id, 8);
+        chartService.updateWeeklyTrendChart(summaries);
+    } catch (e) {
+        console.warn('Failed to load monitoring trend:', e);
+    }
+}
+
+/**
+ * 비용 경고 및 시간 추정치 업데이트
+ */
+function updateMonitoringCostWarning() {
+    let queries = (currentStore && currentStore.queries) || [];
+    if (typeof queries === 'string') { try { queries = JSON.parse(queries); } catch(e) { queries = []; } }
+    const qCount = Math.min(queries.length, 50);
+
+    const repeatCount = parseInt(
+        document.querySelector('input[name="monitoring-repeat"]:checked')?.value || 3
+    );
+    const aiCount = ['claude', 'chatgpt', 'gemini'].filter(ai =>
+        document.getElementById(`monitoring-ai-${ai}`)?.checked
+    ).length;
+
+    const totalCalls = qCount * (aiCount || 3) * repeatCount;
+    const mins = Math.ceil(totalCalls * 1.5 / 60);
+
+    const callEl = document.getElementById('monitoring-call-count');
+    const timeEl = document.getElementById('monitoring-time-estimate');
+    if (callEl) callEl.textContent = totalCalls.toLocaleString();
+    if (timeEl) timeEl.textContent = ` — 약 ${mins}분 소요`;
+
+    // 질문 수 부족 경고
+    const warnEl  = document.getElementById('monitoring-query-warn');
+    const countEl = document.getElementById('monitoring-query-count');
+    if (warnEl && countEl) {
+        countEl.textContent = qCount;
+        warnEl.style.display = qCount < 10 ? 'block' : 'none';
+    }
+}
+
+/**
+ * Wilson Score Interval (95% CI)
+ * @param {number} successes - 언급된 횟수
+ * @param {number} n         - 전체 시행 횟수
+ * @param {number} z         - 신뢰수준 Z값 (1.96 = 95%)
+ * @returns {{ rate: number, lower: number, upper: number }} — % 정수
+ */
+function calcWilsonCI(successes, n, z = 1.96) {
+    if (n === 0) return { rate: 0, lower: 0, upper: 0 };
+    if (n < 10) console.warn(`Wilson CI: n=${n} 은 신뢰구간이 불안정합니다.`);
+
+    const p   = successes / n;
+    const z2  = z * z;
+    const denom  = 1 + z2 / n;
+    const center = (p + z2 / (2 * n)) / denom;
+    const margin = (z / denom) * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n));
+
+    return {
+        rate:  Math.round(p * 100),
+        lower: Math.max(0,   Math.round((center - margin) * 100)),
+        upper: Math.min(100, Math.round((center + margin) * 100))
+    };
+}
+
+/**
+ * 이번 주의 월요일을 YYYY-MM-DD 형식으로 반환
+ */
+function getWeekMonday(date = new Date()) {
+    const d   = new Date(date);
+    const day = d.getDay();   // 0=일요일
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return d.toISOString().split('T')[0];
+}
+
+/** AI 레이블 헬퍼 */
+function getAILabel(ai) {
+    return { claude: 'Claude', chatgpt: 'ChatGPT', gemini: 'Gemini' }[ai] || ai;
+}
+
+/** AI 색상 헬퍼 */
+function getAIColor(ai) {
+    return { claude: '#185FA5', chatgpt: '#3B6D11', gemini: '#854F0B' }[ai] || '#555';
+}
+
+/**
+ * AI API 단일 호출 (monitoring 전용 래퍼)
+ * @returns {string} 응답 텍스트 (실패 시 빈 문자열)
+ */
+async function callAIForMonitoring(aiType, question) {
+    try {
+        let result;
+        if (aiType === 'claude')  result = await apiService.callClaude(question);
+        else if (aiType === 'chatgpt') result = await apiService.callChatGPT(question);
+        else if (aiType === 'gemini')  result = await apiService.callGemini(question);
+        return (result && result.data) ? result.data : '';
+    } catch (e) {
+        console.warn(`Monitoring API error (${aiType}):`, e.message);
+        return '';  // 실패 시 mentioned = false 처리
+    }
+}
+
+/**
+ * HTML 이스케이프 헬퍼
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+/**
+ * 신뢰구간 결과 카드 1개 렌더링 (AI 1개 완료 시 즉시 호출)
+ */
+function renderCICard(aiType, ci, n) {
+    const container = document.getElementById('ci-cards-container');
+    if (!container) return;
+
+    const color = getAIColor(aiType);
+    const label = getAILabel(aiType);
+    const html = `
+        <div class="ci-result-card" id="ci-card-${aiType}">
+            <div class="ci-ai-label" style="color:${color};">${label}</div>
+            <div class="ci-bar-wrap">
+                <div class="ci-bar-fill" style="background:${color}; width:${ci.rate}%;"></div>
+            </div>
+            <div class="ci-rate" style="color:${color};">${ci.rate}%</div>
+            <div class="ci-badge">[${ci.lower}–${ci.upper}]</div>
+            <div class="ci-n">n=${n}</div>
+        </div>`;
+
+    const existing = document.getElementById(`ci-card-${aiType}`);
+    if (existing) existing.outerHTML = html;
+    else container.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * GEO Score 실시간 업데이트
+ * @param {{ claude?: number, chatgpt?: number, gemini?: number }} components - AI별 언급률(%)
+ */
+function updateGeoScoreDisplay(components) {
+    const weights = { claude: 0.4, chatgpt: 0.4, gemini: 0.2 };
+    let score = 0;
+    Object.entries(components).forEach(([ai, rate]) => {
+        score += rate * (weights[ai] || 0);
+    });
+    const el = document.getElementById('ci-geo-score');
+    if (el) el.textContent = Math.round(score);
+}
+
+/**
+ * 질문별 상세 테이블 렌더링
+ * @param {string[]} queries
+ * @param {{ claude?: Object, chatgpt?: Object, gemini?: Object }} allResults
+ *        각 AI는 { [question]: { mentioned: n, total: n } } 형식
+ */
+function renderDetailTable(queries, allResults) {
+    const tbody = document.getElementById('monitoring-detail-table-body');
+    if (!tbody) return;
+
+    const ALL_AIS = ['claude', 'chatgpt', 'gemini'];
+    tbody.innerHTML = queries.map((q, i) => {
+        const cells = ALL_AIS.map(ai => {
+            const agg = (allResults[ai] || {})[q];
+            if (!agg || agg.total === 0) return `<td class="mentioned-no">—</td>`;
+            const { mentioned, total } = agg;
+            if (mentioned === total) return `<td class="mentioned-yes">✓ ${mentioned}/${total}</td>`;
+            if (mentioned === 0)     return `<td class="mentioned-no">✗ 0/${total}</td>`;
+            return `<td class="mentioned-partial">△ ${mentioned}/${total}</td>`;
+        }).join('');
+        return `<tr>
+            <td style="color:#aaa;font-size:0.8rem;text-align:center;">${i + 1}</td>
+            <td style="font-size:0.87rem;">${escapeHtml(q)}</td>
+            ${cells}
+        </tr>`;
+    }).join('');
+}
+
+/**
+ * 메인 측정 루프
+ * 질문 50개 × N회 반복 → Wilson CI 계산 → Supabase 저장
+ */
+async function runMonitoringCycle() {
+    if (!currentStore) { alert('매장을 먼저 선택해주세요.'); return; }
+
+    // 설정 수집
+    const repeatCount = parseInt(
+        document.querySelector('input[name="monitoring-repeat"]:checked')?.value || 3
+    );
+    const selectedAIs = ['claude', 'chatgpt', 'gemini'].filter(ai =>
+        document.getElementById(`monitoring-ai-${ai}`)?.checked
+    );
+    if (selectedAIs.length === 0) { alert('AI를 1개 이상 선택해주세요.'); return; }
+
+    // 질문 목록 (최대 50개)
+    let queries = currentStore.queries || [];
+    if (typeof queries === 'string') { try { queries = JSON.parse(queries); } catch(e) { queries = []; } }
+    queries = queries.slice(0, 50);
+    if (queries.length === 0) {
+        alert('모니터링 질문이 없습니다. 설정 탭에서 AI 자동완성으로 질문을 먼저 생성해주세요.');
+        return;
+    }
+
+    const storeName  = (currentStore.store_name || '').toLowerCase();
+    const week       = getWeekMonday();
+    const totalCalls = queries.length * selectedAIs.length * repeatCount;
+    let completedCalls = 0;
+
+    // UI 잠금
+    window._monitoringAbort = false;
+    const btnStart    = document.getElementById('btn-monitoring-start');
+    const btnAbort    = document.getElementById('btn-monitoring-abort');
+    const progressWrap = document.getElementById('monitoring-progress-wrap');
+    const resultsCard  = document.getElementById('monitoring-results-card');
+    const ciContainer  = document.getElementById('ci-cards-container');
+    const geoEl        = document.getElementById('ci-geo-score');
+
+    btnStart.disabled = true;
+    if (btnAbort)    { btnAbort.style.display = 'inline-flex'; btnAbort.disabled = false; btnAbort.textContent = '⛔ 중단'; }
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (resultsCard)  resultsCard.style.display  = 'block';
+    if (ciContainer)  ciContainer.innerHTML = '';
+    if (geoEl)        geoEl.textContent = '—';
+
+    const setProgress = (text) => {
+        const pct = totalCalls > 0 ? Math.round((completedCalls / totalCalls) * 100) : 0;
+        const bar = document.getElementById('monitoring-progress-bar');
+        const txt = document.getElementById('monitoring-progress-text');
+        if (bar) bar.style.width = pct + '%';
+        if (txt) txt.textContent = `${pct}% — ${text}`;
+    };
+
+    // 질문별 집계 저장소
+    const allResults   = {};   // { ai: { question: { mentioned, total } } }
+    const geoComponents = {};
+
+    try {
+        for (const ai of selectedAIs) {
+            if (window._monitoringAbort) break;
+
+            // 질문별 집계 초기화
+            const agg = {};
+            queries.forEach(q => { agg[q] = { mentioned: 0, total: 0 }; });
+
+            for (let run = 1; run <= repeatCount; run++) {
+                if (window._monitoringAbort) break;
+                const batchRows = [];
+
+                for (let qi = 0; qi < queries.length; qi++) {
+                    if (window._monitoringAbort) break;
+                    const q = queries[qi];
+
+                    setProgress(`Round ${run}/${repeatCount} | ${getAILabel(ai)}: ${qi + 1}/${queries.length}번 질문`);
+
+                    const text = await callAIForMonitoring(ai, q);
+                    const mentioned = storeName ? text.toLowerCase().includes(storeName) : false;
+
+                    agg[q].total++;
+                    if (mentioned) agg[q].mentioned++;
+
+                    batchRows.push({
+                        store_id: currentStore.id,
+                        question: q, ai_type: ai,
+                        mentioned, run_index: run, week
+                    });
+                    completedCalls++;
+
+                    await new Promise(r => setTimeout(r, 300));  // 레이트리미트 방지
+                }
+
+                // 라운드 1회 완료 시 Supabase 배치 저장
+                if (batchRows.length > 0) {
+                    await supabaseService.saveMonitoringResult(batchRows);
+                }
+            }
+
+            // AI 1개 완료 → 즉시 Wilson CI 계산 + 카드 렌더 (Q2)
+            const totalMentioned = Object.values(agg).reduce((s, v) => s + v.mentioned, 0);
+            const totalN         = Object.values(agg).reduce((s, v) => s + v.total, 0);
+            const ci = calcWilsonCI(totalMentioned, totalN);
+
+            allResults[ai] = agg;
+            geoComponents[ai] = ci.rate;
+
+            renderCICard(ai, ci, totalN);            // 카드 즉시 표시
+            updateGeoScoreDisplay(geoComponents);    // GEO Score 실시간 갱신
+
+            // Supabase 요약 upsert
+            await supabaseService.upsertMonitoringSummary([{
+                store_id: currentStore.id, week, ai_type: ai,
+                mention_rate: ci.rate,
+                ci_lower: ci.lower, ci_upper: ci.upper,
+                n: totalN
+            }]);
+        }
+
+        // 전체 완료 시: 상세 테이블 + 주간 추세
+        if (!window._monitoringAbort) {
+            renderDetailTable(queries, allResults);
+            const detailCard = document.getElementById('monitoring-detail-card');
+            if (detailCard) detailCard.style.display = 'block';
+
+            const summaries = await supabaseService.getMonitoringSummary(currentStore.id, 8);
+            chartService.updateWeeklyTrendChart(summaries);
+
+            setProgress('측정 완료 ✅');
+        } else {
+            setProgress('⛔ 측정이 중단되었습니다. (완료된 부분은 저장되었습니다)');
+        }
+
+    } catch (err) {
+        console.error('Monitoring cycle error:', err);
+        setProgress(`❌ 오류: ${err.message}`);
+    } finally {
+        btnStart.disabled = false;
+        if (btnAbort) btnAbort.style.display = 'none';
+        window._monitoringAbort = false;
+    }
+}
+
+// ================================================================
+// Phase 4 — 채널 배포 (오토파일럿)
+// ================================================================
+
+let currentSelectedQueueItem = null;
+
+/**
+ * 채널 배포 탭 초기화
+ */
+function initDistributionTab() {
+    const previewTabs = document.querySelectorAll('#distribution-preview-tabs .tab');
+    previewTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            previewTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            const channel = tab.getAttribute('data-channel');
+            if (currentSelectedQueueItem) {
+                renderChannelPreview(currentSelectedQueueItem.contents, channel);
+            }
+        });
+    });
+}
+
+/**
+ * 배포 대기 목록 및 이력 로드
+ */
+async function loadDistributionQueue() {
+    const pendingTableBody = document.getElementById('distribution-pending-table-body');
+    const historyTableBody = document.getElementById('distribution-history-table-body');
+    const previewTabs = document.getElementById('distribution-preview-tabs');
+    const previewArea = document.getElementById('distribution-preview-area');
+
+    if (!pendingTableBody || !historyTableBody || !currentStore) return;
+
+    try {
+        const queue = await supabaseService.getDistributionQueue(currentStore.id) || [];
+        const pendingItems = queue.filter(item => item.status === '대기');
+        const historyItems = queue.filter(item => item.status === '발행완료');
+
+        // 1. 대기 목록 렌더링
+        if (pendingItems.length > 0) {
+            pendingTableBody.innerHTML = pendingItems.map(item => {
+                const title = item.contents?.title || '제목 없음';
+                
+                let channelName = '';
+                switch (item.channel) {
+                    case 'naver_blog': channelName = '네이버 블로그'; break;
+                    case 'instagram': channelName = '인스타 카드'; break;
+                    case 'seenow': channelName = 'Seenow 미니홈피'; break;
+                    case 'google_business': channelName = '구글 비즈니스'; break;
+                    default: channelName = item.channel;
+                }
+
+                return `
+                    <tr data-id="${item.id}" class="${currentSelectedQueueItem && currentSelectedQueueItem.id === item.id ? 'active-row' : ''}">
+                        <td style="font-weight: 600; text-align: left;">${escapeHtml(title)}</td>
+                        <td><span class="ci-badge" style="font-size: 0.8rem; background-color: #f0f4f8; color: #185FA5;">${escapeHtml(channelName)}</span></td>
+                        <td><span style="color: #f39c12; font-weight: bold;">대기</span></td>
+                        <td>
+                            <button class="btn btn-primary btn-publish-item" 
+                                    style="padding: 4px 10px; font-size: 11px; margin: 0;"
+                                    data-id="${item.id}" 
+                                    data-channel="${item.channel}">발행하기</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 대기 행 클릭 리스너 등록
+            pendingTableBody.querySelectorAll('tr').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    // 발행 버튼 클릭 시에는 행 클릭 무시
+                    if (e.target.closest('.btn-publish-item')) return;
+
+                    const id = row.getAttribute('data-id');
+                    const selected = pendingItems.find(item => item.id === id);
+                    if (selected) {
+                        currentSelectedQueueItem = selected;
+                        
+                        // 행 활성화 스타일
+                        pendingTableBody.querySelectorAll('tr').forEach(r => r.classList.remove('active-row'));
+                        row.classList.add('active-row');
+
+                        // 미리보기 탭 활성화 및 렌더링
+                        if (previewTabs) previewTabs.style.display = 'flex';
+                        const activeTab = document.querySelector('#distribution-preview-tabs .tab.active');
+                        const channel = activeTab ? activeTab.getAttribute('data-channel') : 'naver_blog';
+                        renderChannelPreview(selected.contents, channel);
+                    }
+                });
+            });
+
+            // 발행 버튼 클릭 리스너 등록
+            pendingTableBody.querySelectorAll('.btn-publish-item').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    const channel = btn.getAttribute('data-channel');
+                    await publishContent(id, channel);
+                });
+            });
+
+            // 선택된 항목이 있다면 다시 그리기, 없으면 첫 번째 자동 선택
+            if (currentSelectedQueueItem) {
+                const stillExists = pendingItems.some(i => i.id === currentSelectedQueueItem.id);
+                if (stillExists) {
+                    const activeRow = pendingTableBody.querySelector(`tr[data-id="${currentSelectedQueueItem.id}"]`);
+                    if (activeRow) activeRow.classList.add('active-row');
+                    if (previewTabs) previewTabs.style.display = 'flex';
+                    const activeTab = document.querySelector('#distribution-preview-tabs .tab.active');
+                    const channel = activeTab ? activeTab.getAttribute('data-channel') : 'naver_blog';
+                    renderChannelPreview(currentSelectedQueueItem.contents, channel);
+                } else {
+                    currentSelectedQueueItem = null;
+                    triggerFirstItemSelect();
+                }
+            } else {
+                triggerFirstItemSelect();
+            }
+
+            function triggerFirstItemSelect() {
+                if (pendingItems.length > 0) {
+                    const firstRow = pendingTableBody.querySelector('tr');
+                    if (firstRow) firstRow.click();
+                }
+            }
+
+        } else {
+            pendingTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999; padding: 25px;">대기 중인 배포 건이 없습니다.</td></tr>';
+            if (previewTabs) previewTabs.style.display = 'none';
+            if (previewArea) {
+                previewArea.innerHTML = `
+                    <div style="text-align: center; color: #999; padding: 50px 20px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                        📢 배포 대기 목록에서 리스티클을 선택하시면 실시간 채널별 미리보기가 여기에 표시됩니다.
+                    </div>
+                `;
+            }
+            currentSelectedQueueItem = null;
+        }
+
+        // 2. 이력 목록 렌더링
+        if (historyItems.length > 0) {
+            historyTableBody.innerHTML = historyItems.map(item => {
+                const title = item.contents?.title || '제목 없음';
+                const dateStr = item.published_at ? new Date(item.published_at).toLocaleString('ko-KR') : '알 수 없음';
+                
+                let channelName = '';
+                switch (item.channel) {
+                    case 'naver_blog': channelName = '네이버 블로그'; break;
+                    case 'instagram': channelName = '인스타 카드'; break;
+                    case 'seenow': channelName = 'Seenow 미니홈피'; break;
+                    case 'google_business': channelName = '구글 비즈니스'; break;
+                    default: channelName = item.channel;
+                }
+
+                return `
+                    <tr>
+                        <td><span class="ci-badge" style="font-size: 0.8rem; background-color: #f0f4f8; color: #555;">${escapeHtml(channelName)}</span></td>
+                        <td>${dateStr}</td>
+                        <td style="font-weight: 500; text-align: left;">${escapeHtml(title)}</td>
+                        <td><span style="color: var(--success); font-weight: bold;">발행 완료</span></td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            historyTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999; padding: 25px;">발행 이력이 없습니다.</td></tr>';
+        }
+
+    } catch (err) {
+        console.error('Failed to load distribution queue:', err);
+    }
+}
+
+/**
+ * 콘텐츠 발행 처리
+ */
+async function publishContent(itemId, channel) {
+    let chanName = '';
+    switch (channel) {
+        case 'naver_blog': chanName = '네이버 블로그'; break;
+        case 'instagram': chanName = '인스타 카드'; break;
+        case 'seenow': chanName = 'Seenow 미니홈피'; break;
+        case 'google_business': chanName = '구글 비즈니스'; break;
+        default: chanName = channel;
+    }
+
+    if (!confirm(`선택한 리스티클을 [${chanName}] 채널에 최종 발행 승인하시겠습니까?\n이 작업은 화이트햇 원칙에 의해 사람의 승인 후 즉시 완료됩니다.`)) {
+        return;
+    }
+
+    try {
+        const res = await supabaseService.updateDistributionStatus(itemId, '발행완료');
+        if (res) {
+            alert(`콘텐츠가 [${chanName}] 채널로 성공적으로 발행 처리되었습니다.`);
+            
+            // 발행 성공 시 콘텐츠 생성 목록의 배포 상태 표시에 반영되도록 리로드
+            await loadListiclesList();
+            
+            // 현재 선택 해제
+            if (currentSelectedQueueItem && currentSelectedQueueItem.id === itemId) {
+                currentSelectedQueueItem = null;
+            }
+            // 목록 새로고침
+            await loadDistributionQueue();
+        } else {
+            alert('발행 처리에 실패했습니다. 다시 시도해 주세요.');
+        }
+    } catch (err) {
+        console.error('Publish error:', err);
+        alert('발행 처리 도중 오류가 발생했습니다.');
+    }
+}
+
+/**
+ * 채널별 미리보기 렌더링
+ */
+function renderChannelPreview(content, channel) {
+    const previewArea = document.getElementById('distribution-preview-area');
+    if (!previewArea) return;
+
+    if (!content) {
+        previewArea.innerHTML = '<div style="text-align: center; color: #999; padding: 30px;">기사 본문을 불러오지 못했습니다.</div>';
+        return;
+    }
+
+    // 마크다운 파싱 헬퍼 함수
+    function parseMarkdown(md) {
+        if (!md) return '';
+        // Escape HTML
+        let html = escapeHtml(md);
+        
+        // Bold: **text** -> <strong>text</strong>
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Headings: ### text -> <h3>text</h3>
+        html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+        
+        // Quote lines starting with >
+        html = html.replace(/^&gt; (.*?)$/gm, '<blockquote>$1</blockquote>');
+        
+        // Paragraph division
+        const paragraphs = html.split(/\n\n+/);
+        return paragraphs.map(p => {
+            p = p.trim();
+            if (!p) return '';
+            if (p.startsWith('<h3>') || p.startsWith('<blockquote>')) return p;
+            return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+        }).join('');
+    }
+
+    const title = content.title || '제목 없음';
+    const bodyHtml = parseMarkdown(content.body || '');
+    const dateToday = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s/g, '.').replace(/\.$/, '');
+    const storeName = currentStore ? currentStore.store_name : '우리 매장';
+
+    let html = '';
+
+    switch (channel) {
+        case 'naver_blog':
+            html = `
+                <div class="naver-blog-mock">
+                    <div class="naver-blog-header">
+                        <div class="naver-blog-category">가평 핫플레이스 추천</div>
+                        <h1 class="naver-blog-title">${escapeHtml(title)}</h1>
+                        <div class="naver-blog-author">
+                            <div class="naver-blog-avatar">${escapeHtml(storeName[0])}</div>
+                            <strong>${escapeHtml(storeName)} 공식블로그</strong>
+                            <span style="color:#bbb;">•</span>
+                            <span>${dateToday}</span>
+                        </div>
+                    </div>
+                    <div class="naver-blog-body">
+                        ${bodyHtml}
+                        ${content.evidence_units?.quote ? `
+                            <div class="naver-blog-quote">
+                                <strong>💡 한줄 평:</strong> "${escapeHtml(content.evidence_units.quote)}"
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            break;
+
+        case 'instagram':
+            const initial = storeName[0];
+            const captionSummary = (content.body || '').replace(/###/g, '').replace(/\*\*/g, '').substring(0, 150) + '...';
+            const keywordTag = content.niche_keyword ? '#' + content.niche_keyword.replace(/\s+/g, '') : '#가평맛집';
+            
+            html = `
+                <div class="instagram-mock">
+                    <div class="instagram-header">
+                        <div class="instagram-profile">
+                            <div class="instagram-avatar">
+                                <div class="instagram-avatar-inner">${escapeHtml(initial)}</div>
+                            </div>
+                            <div class="instagram-author-info">
+                                <span class="instagram-username">${escapeHtml(storeName.replace(/\s+/g, '_').toLowerCase())}</span>
+                                <span class="instagram-location">${escapeHtml(currentStore?.address || '가평')}</span>
+                            </div>
+                        </div>
+                        <span style="font-weight: bold; cursor: pointer; color: #262626;">•••</span>
+                    </div>
+                    <div class="instagram-card-graphic">
+                        <div class="instagram-card-title">${escapeHtml(title)}</div>
+                        <div class="instagram-card-tag">${escapeHtml(content.niche_keyword || '추천 맛집')}</div>
+                        <div class="instagram-card-footer-logo">${escapeHtml(storeName.toUpperCase())}</div>
+                    </div>
+                    <div class="instagram-actions">
+                        <div class="instagram-actions-left">
+                            <span>❤️</span> <span>💬</span> <span>✈️</span>
+                        </div>
+                        <div>🔖</div>
+                    </div>
+                    <div class="instagram-likes">좋아요 128개</div>
+                    <div class="instagram-caption-section">
+                        <p class="instagram-caption-text">
+                            <strong>${escapeHtml(storeName.replace(/\s+/g, '_').toLowerCase())}</strong> 
+                            ${escapeHtml(captionSummary)}
+                        </p>
+                        <span class="instagram-hashtags">
+                            ${escapeHtml(keywordTag)} #현리맛집 #조종면맛집 #가평핫플 #가평단골 #가평회식장소 #설맥
+                        </span>
+                    </div>
+                </div>
+            `;
+            break;
+
+        case 'seenow':
+            let parsedHours = currentStore?.hours || {};
+            if (typeof parsedHours === 'string') {
+                try { parsedHours = JSON.parse(parsedHours); } catch(e) { parsedHours = {}; }
+            }
+            const hoursVal = parsedHours.mon ? parsedHours.mon : '17:00 ~ 24:00';
+
+            html = `
+                <div class="seenow-mock">
+                    <div class="seenow-banner">
+                        <span class="seenow-logo">Seenow.kr</span>
+                        <span class="seenow-store-badge">Local Guide</span>
+                    </div>
+                    <div class="seenow-store-card">
+                        <h1 class="seenow-store-name">${escapeHtml(storeName)}</h1>
+                        <div class="seenow-info-list">
+                            <span class="seenow-info-badge">📍 ${escapeHtml(currentStore?.address || '위치 정보')}</span>
+                            <span class="seenow-info-badge">🕒 영업: ${escapeHtml(hoursVal)}</span>
+                            <span class="seenow-info-badge">🚗 주차: ${escapeHtml(currentStore?.parking || '가능')}</span>
+                        </div>
+                    </div>
+                    <div class="seenow-body">
+                        <h2>${escapeHtml(title)}</h2>
+                        <div class="seenow-text">
+                            ${bodyHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+
+        case 'google_business':
+            html = `
+                <div class="google-biz-mock">
+                    <div class="google-biz-header">
+                        <div class="google-biz-avatar">G</div>
+                        <div class="google-biz-info">
+                            <span class="google-biz-name">${escapeHtml(storeName)}</span>
+                            <span class="google-biz-post-type">구글 비즈니스 프로필 소식 • 방금 전</span>
+                        </div>
+                    </div>
+                    <div class="google-biz-body">
+                        <h3>${escapeHtml(title)}</h3>
+                        ${bodyHtml}
+                        <button class="google-biz-btn" onclick="alert('Seenow 미니홈피 예약 페이지로 연결됩니다.'); return false;">더 알아보기</button>
+                    </div>
+                </div>
+            `;
+            break;
+
+        default:
+            previewArea.innerHTML = `<div style="padding: 20px;">지원하지 않는 채널입니다: ${channel}</div>`;
+            return;
+    }
+
+    previewArea.innerHTML = html;
+}
+
 

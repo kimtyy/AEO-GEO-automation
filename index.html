@@ -19,11 +19,11 @@
             <div class="logo">AEO/GEO</div>
             <nav>
                 <ul id="sidebar-menu">
-                    <li data-target="page-dashboard" class="active">대시보드</li>
-                    <li data-target="page-analysis">진단 분석</li>
-                    <li data-target="page-content">콘텐츠 관리</li>
+                    <li data-target="page-dashboard" class="active">홈</li>
+                    <li data-target="page-geo-diagnosis">GEO 진단</li>
+                    <li data-target="page-content">콘텐츠 생성</li>
+                    <li data-target="page-distribution">채널 배포</li>
                     <li data-target="page-monitoring">모니터링</li>
-                    <li data-target="page-competitor">경쟁사 분석</li>
                     <li data-target="page-report">리포트</li>
                     <li data-target="page-settings">설정</li>
                 </ul>
@@ -188,8 +188,8 @@
                     </div>
                 </section>
 
-                <!-- Analysis Page -->
-                <section id="page-analysis" class="page">
+                <!-- GEO 진단 Page -->
+                <section id="page-geo-diagnosis" class="page">
                     <div class="card">
                         <h3>AI 진단 분석 실행</h3>
                         <div style="margin-bottom: 15px; color: #666;">
@@ -298,117 +298,260 @@
                     </div>
                 </section>
                 
-                <!-- Content Management Page -->
+                <!-- Content Management Page (Phase 3 리스티클 중심 개편) -->
                 <section id="page-content" class="page">
-                    <h3 class="section-title">콘텐츠 자동 생성</h3>
-                    <div class="content-section">
-                        <h4>[섹션 1] 일회성 설정</h4>
-                        <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">한 번 잘 정비해두면 오래 유지되는 항목입니다.</p>
-                        <div class="content-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
-                            <div class="card">
-                                <h4>플레이스 최적화</h4>
-                                <p>네이버플레이스 소개글, 메뉴, 사진, 영업시간을 점검하고 AI 친화적으로 다시 작성해드립니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="플레이스 최적화">최적화 콘텐츠 생성</button>
+                    <h3 class="section-title">✍️ 제3자 리스티클 콘텐츠 생성</h3>
+                    
+                    <div class="card" id="listicle-generation-card" style="margin-bottom: 20px;">
+                        <h4>🎯 신규 리스티클 기사 발행</h4>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">
+                            제3자 권위 매체(맛집 추천 가이드, 지역 매거진 등)의 관점에서 특정 니치 타겟에 맞춰 추천 리스티클을 생성합니다.<br/>
+                            작성 시 AI 신뢰를 극대화하는 <strong>4대 증거유닛 (수치/통계, 인용문, 출처, 비교)</strong> 및 객관성을 강화하는 <strong>아쉬운 점 언급</strong>이 의무 포함됩니다.
+                        </p>
+
+                        <div class="listicle-option-group">
+                            <!-- 니치 키워드 드롭다운 -->
+                            <div>
+                                <label class="listicle-option-title">1. 타겟 니치 키워드 선택</label>
+                                <select id="listicle-niche-select" class="listicle-select">
+                                    <option value="">-- 매장을 먼저 선택하고 설정 탭에서 니치 키워드를 생성해주세요 --</option>
+                                </select>
                             </div>
-                            <div class="card">
-                                <h4>비즈니스 프로필 최적화</h4>
-                                <p>구글 비즈니스 프로필 소개글과 카테고리를 점검하고 다시 작성해드립니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="비즈니스 프로필 최적화">최적화 콘텐츠 생성</button>
+
+                            <!-- 제목 추천 버튼 및 라디오 후보군 -->
+                            <div>
+                                <label class="listicle-option-title">2. 리스티클 기사 제목 선택</label>
+                                <button class="btn btn-secondary" id="btn-suggest-titles" style="margin-bottom:10px; width: 100%;">
+                                    ✨ 니치 키워드 맞춤형 기사 제목 추천받기
+                                </button>
+                                
+                                <div id="title-suggestions-container" class="title-suggestion-list" style="display: none; max-height: 250px; overflow-y: auto;">
+                                    <!-- JS 렌더링 -->
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 30px;">
-                    
-                    <div class="content-section">
-                        <h4>[섹션 2] 지속형 콘텐츠 (계속 쌓아가는 콘텐츠)</h4>
-                        <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">꾸준히 쌓일수록 AI 노출이 늘어납니다.</p>
-                        <div class="content-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                            <div class="card">
-                                <h4>질문뱅크</h4>
-                                <p>고객이 실제로 검색할 질문들을 자동으로 생성하고, 그 중 채택한 질문은 FAQ로 등록됩니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="질문뱅크">질문 10개 생성</button>
-                            </div>
-                            <div class="card">
-                                <h4>지역키워드 추천형</h4>
-                                <p>지역명+업종+특징을 조합한 질문형 콘텐츠로, 주변 명소·코스와 연계해 노출을 높입니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="지역키워드 추천형">자동 생성</button>
-                            </div>
-                            <div class="card">
-                                <h4>전문성 콘텐츠</h4>
-                                <p>업종 전문 지식 콘텐츠로 AI가 신뢰할 수 있는 출처임을 보여줍니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="전문성 콘텐츠">자동 생성</button>
-                            </div>
-                            <div class="card">
-                                <h4>SNS/숏폼 콘텐츠</h4>
-                                <p>인스타그램, 유튜브 숏폼 등에 적합한 짧고 임팩트 있는 콘텐츠를 생성합니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="SNS/숏폼 콘텐츠">자동 생성</button>
-                            </div>
-                            <div class="card">
-                                <h4>보도자료형</h4>
-                                <p>신메뉴 출시나 이벤트 등 공식 소식을 알리는 보도자료를 생성합니다.</p>
-                                <button class="btn btn-secondary btn-generate-content" data-type="보도자료형">자동 생성</button>
-                            </div>
+
+                        <!-- 최종 본문 생성하기 -->
+                        <button class="btn btn-primary" id="btn-generate-listicle" style="width: 100%; font-size: 1.1rem; padding: 12px;" disabled>
+                            📝 리스티클 본문 기사 생성
+                        </button>
+
+                        <!-- 로딩 표시 -->
+                        <div class="listicle-loading-box" id="listicle-loading-box" style="display: none;">
+                            <div class="spinner"></div>
+                            <span id="listicle-loading-text" style="font-size: 0.9rem; color: var(--text-muted);">AI가 리스티클 제목 리스트를 추천하고 있습니다...</span>
                         </div>
                     </div>
-                    <div class="card">
-                        <h4>생성된 콘텐츠 목록</h4>
-                        <table class="data-table" id="content-table">
-                            <thead>
-                                <tr>
-                                    <th>생성일</th>
-                                    <th>유형</th>
-                                    <th>내용 미리보기</th>
-                                    <th>상태</th>
-                                    <th>보기</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Loaded from Supabase contents or dummy data -->
-                            </tbody>
-                        </table>
+
+                    <div class="card" id="listicle-list-card">
+                        <h4>📋 생성된 리스티클 목록</h4>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" id="content-table">
+                                <thead>
+                                    <tr>
+                                        <th>생성일</th>
+                                        <th>추천 제목</th>
+                                        <th>니치 키워드</th>
+                                        <th>배포 상태</th>
+                                        <th>보기</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listicle-table-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 25px; color: #999;">생성된 콘텐츠가 없습니다.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <!-- Monitoring Page -->
+                <!-- 채널 배포 Page -->
+                <section id="page-distribution" class="page">
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <!-- 배포 대기 목록 (좌측) -->
+                        <div class="card" style="flex: 1.2; min-width: 320px; max-width: 650px;">
+                            <h3>📋 배포 대기 목록</h3>
+                            <p style="font-size: 0.88em; color: var(--text-muted); margin-bottom: 12px; margin-top: 5px;">
+                                생성된 리스티클을 채널별로 검토하고 최종 승인 후 발행합니다. 목록의 행을 클릭하면 미리보기가 표시됩니다.
+                            </p>
+                            <div style="overflow-x: auto; max-height: 520px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>리스티클명</th>
+                                            <th>채널</th>
+                                            <th>상태</th>
+                                            <th>작업</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="distribution-pending-table-body">
+                                        <tr>
+                                            <td colspan="4" style="text-align: center; color: #999; padding: 25px;">
+                                                대기 중인 배포 건이 없습니다.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 채널별 미리보기 (우측) -->
+                        <div class="card" style="flex: 1; min-width: 350px;">
+                            <h3>📱 채널별 미리보기</h3>
+                            
+                            <!-- 미리보기 탭 바 -->
+                            <div class="tabs" id="distribution-preview-tabs" style="margin-top: 15px; margin-bottom: 15px; display: none;">
+                                <div class="tab active" data-channel="naver_blog">네이버 블로그</div>
+                                <div class="tab" data-channel="instagram">인스타 카드</div>
+                                <div class="tab" data-channel="seenow">Seenow 미니홈피</div>
+                                <div class="tab" data-channel="google_business">구글 비즈니스</div>
+                            </div>
+                            
+                            <!-- 미리보기 노출 영역 -->
+                            <div id="distribution-preview-area" class="preview-area-container">
+                                <div style="text-align: center; color: #999; padding: 50px 20px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                                    📢 배포 대기 목록에서 리스티클을 선택하시면 실시간 채널별 미리보기가 여기에 표시됩니다.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 배포 이력 테이블 (하단) -->
+                    <div class="card" style="margin-top: 20px;">
+                        <h3>📊 배포 이력 테이블</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>채널</th>
+                                        <th>발행일</th>
+                                        <th>리스티클명</th>
+                                        <th>상태</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="distribution-history-table-body">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: #999; padding: 25px;">
+                                            발행 이력이 없습니다.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 모니터링 Page — AI 언급률 신뢰구간 측정 -->
                 <section id="page-monitoring" class="page">
-                    <div class="card">
-                        <h3>변화 이력</h3>
-                        <table class="data-table" id="monitoring-table">
-                            <thead>
-                                <tr>
-                                    <th>날짜</th>
-                                    <th>AI 가시성 점수</th>
-                                    <th>AI 언급률</th>
-                                    <th>주요 변화 내용</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Loaded from Supabase analysis_history -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
 
-                <!-- Competitor Analysis Page -->
-                <section id="page-competitor" class="page">
-                    <div class="card">
-                        <h3>경쟁사 비교</h3>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>업체명</th>
-                                    <th>가시성 점수(평균)</th>
-                                    <th>Claude 언급률</th>
-                                    <th>ChatGPT 언급률</th>
-                                    <th>Gemini 언급률</th>
-                                </tr>
-                            </thead>
-                            <tbody id="competitor-table-body">
-                                <!-- Loaded from Supabase -->
-                            </tbody>
-                        </table>
+                    <!-- 측정 실행 컨트롤 -->
+                    <div class="card" id="monitoring-control-card">
+                        <h3>📡 AI 언급률 측정 — Wilson Score 신뢰구간</h3>
+
+                        <!-- 비용 경고 -->
+                        <div class="monitoring-cost-warn" id="monitoring-cost-warn">
+                            <span class="warn-icon">⚠️</span>
+                            <div>
+                                예상 API 호출: <strong><span id="monitoring-call-count">450</span>회</strong>
+                                <span id="monitoring-time-estimate" style="color:#666;"> — 약 11분 소요</span>
+                            </div>
+                        </div>
+
+                        <!-- 반복 횟수 -->
+                        <div class="monitoring-option-row">
+                            <span class="monitoring-option-label">반복 횟수</span>
+                            <div class="radio-group">
+                                <label class="radio-chip"><input type="radio" name="monitoring-repeat" value="3" checked> 3회</label>
+                                <label class="radio-chip"><input type="radio" name="monitoring-repeat" value="4"> 4회</label>
+                                <label class="radio-chip"><input type="radio" name="monitoring-repeat" value="5"> 5회</label>
+                            </div>
+                        </div>
+
+                        <!-- AI 선택 -->
+                        <div class="monitoring-option-row">
+                            <span class="monitoring-option-label">AI 선택</span>
+                            <div class="checkbox-group">
+                                <label class="checkbox-chip">
+                                    <input type="checkbox" id="monitoring-ai-claude" value="claude" checked> Claude
+                                </label>
+                                <label class="checkbox-chip">
+                                    <input type="checkbox" id="monitoring-ai-chatgpt" value="chatgpt" checked> ChatGPT
+                                </label>
+                                <label class="checkbox-chip">
+                                    <input type="checkbox" id="monitoring-ai-gemini" value="gemini" checked> Gemini
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 질문 수 부족 경고 (JS 제어) -->
+                        <div class="monitoring-query-warn" id="monitoring-query-warn" style="display:none;">
+                            ⚠️ 질문이 10개 미만입니다 (<span id="monitoring-query-count">0</span>개). 신뢰구간이 불안정할 수 있습니다.
+                        </div>
+
+                        <!-- 실행 버튼 -->
+                        <div style="display:flex; gap:12px; margin-top:18px;">
+                            <button class="btn btn-primary" id="btn-monitoring-start" style="flex:1; font-size:1rem; padding:12px;">
+                                📡 측정 시작
+                            </button>
+                            <button class="btn btn-secondary" id="btn-monitoring-abort" style="display:none; padding:12px 18px;">
+                                ⛔ 중단
+                            </button>
+                        </div>
+
+                        <!-- 진행 표시 -->
+                        <div class="monitoring-progress-wrap" id="monitoring-progress-wrap" style="display:none;">
+                            <div class="monitoring-progress-bar-bg">
+                                <div class="monitoring-progress-bar-fill" id="monitoring-progress-bar"></div>
+                            </div>
+                            <div class="monitoring-progress-text" id="monitoring-progress-text">준비 중...</div>
+                        </div>
                     </div>
+
+                    <!-- 신뢰구간 결과 카드 -->
+                    <div class="card" id="monitoring-results-card" style="display:none;">
+                        <h3>📊 이번 주 AI 언급률 (95% 신뢰구간)</h3>
+                        <div id="ci-cards-container">
+                            <!-- JS renderCICard()로 렌더링 -->
+                        </div>
+                        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-color); display:flex; align-items:center; gap:14px;">
+                            <span style="font-size:0.88rem; color:var(--text-muted);">
+                                GEO Score (Claude×0.4 + ChatGPT×0.4 + Gemini×0.2)
+                            </span>
+                            <span id="ci-geo-score" style="font-size:1.6rem; font-weight:800; color:var(--primary);">—</span>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">점</span>
+                        </div>
+                    </div>
+
+                    <!-- 주간 추세 차트 -->
+                    <div class="card" id="monitoring-trend-card">
+                        <h3>📈 주간 추세 — 최근 8주</h3>
+                        <div style="position:relative; height:260px;">
+                            <canvas id="weeklyTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 질문별 상세 테이블 -->
+                    <div class="card" id="monitoring-detail-card" style="display:none;">
+                        <h3>🔍 질문별 언급 상세 (이번 측정)</h3>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:36px;">#</th>
+                                        <th>질문</th>
+                                        <th style="width:100px;">Claude</th>
+                                        <th style="width:100px;">ChatGPT</th>
+                                        <th style="width:100px;">Gemini</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monitoring-detail-table-body">
+                                    <!-- JS renderDetailTable()로 렌더링 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </section>
 
                 <!-- Report Page -->
@@ -445,109 +588,154 @@
                     </div>
                 </section>
 
-                <!-- Settings Page -->
+                <!-- Settings Page — AI 자동완성 마법사 -->
                 <section id="page-settings" class="page">
-                    <div class="card" style="margin-bottom: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3>업체 정보</h3>
-                            <button class="btn btn-secondary" id="btn-edit-store-info">수정</button>
-                        </div>
-                        <div id="settings-store-info" style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; margin-top: 15px;">
-                            <!-- Loaded via JS from currentStore -->
-                        </div>
-                    </div>
 
-                    <!-- AEO 마케팅 정보 카드 -->
-                    <div class="card" style="margin-bottom: 20px;" id="card-aeo-marketing">
-                        <h3>AEO 마케팅 정보</h3>
-                        <div style="margin-top: 15px;">
-                            <div style="font-weight: bold; margin-bottom: 5px;">우리 가게를 자유롭게 소개해주세요</div>
-                            <textarea id="aeo-intro-textarea" class="form-control" style="width: 100%; height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; resize: vertical;" placeholder="예: 가평 현리에 위치한 눈꽃맥주 전문점입니다.&#10;40년 경력 한식명장 레시피로 만든 찌개와 냉면,&#10;30인 단체룸, 넓은 주차장, 인근 골프장 캐디·&#10;맹호부대 직원들이 자주 찾습니다..."></textarea>
-                            <button class="btn btn-primary" id="btn-analyze-aeo" style="margin-top: 10px; width: 100%; background-color: #185FA5; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">AI로 자동 분석</button>
-                            
-                            <div id="aeo-analyze-loading" style="display: none; text-align: center; margin-top: 10px; color: #666; font-size: 13px;">
-                                <span style="display: inline-block; margin-right: 5px;">⏳</span> AI 분석 중... 잠시만 기다려주세요.
+                    <!-- ===== 마법사 Step 인디케이터 ===== -->
+                    <div class="card" style="padding: 24px 28px 16px;">
+                        <h3 style="margin-bottom: 20px;">⚙️ 매장 설정 — AI 자동완성</h3>
+                        <div class="wizard-steps" id="wizard-steps">
+                            <div class="wizard-step active" data-step="1">
+                                <div class="wizard-step-num">1</div>
+                                <div class="wizard-step-label">매장명 입력</div>
+                            </div>
+                            <div class="wizard-step" data-step="2">
+                                <div class="wizard-step-num">2</div>
+                                <div class="wizard-step-label">AI 자동완성 검토</div>
+                            </div>
+                            <div class="wizard-step" data-step="3">
+                                <div class="wizard-step-num">3</div>
+                                <div class="wizard-step-label">저장 완료</div>
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 12px; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;" id="aeo-marketing-fields">
-                            <div style="font-weight: bold; align-self: center;">가격대</div>
-                            <div><input type="text" id="aeo-price-range" class="form-control" placeholder="예: 1만~2만원대" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">주차 정보</div>
-                            <div><input type="text" id="aeo-parking" class="form-control" placeholder="예: 매장 앞 주차 가능" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">수용 인원</div>
-                            <div><input type="text" id="aeo-capacity" class="form-control" placeholder="예: 80석" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">단체룸 여부</div>
-                            <div><input type="text" id="aeo-private-room" class="form-control" placeholder="예: 30인 단체룸 보유" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">핵심 스토리</div>
-                            <div><textarea id="aeo-story" class="form-control" placeholder="매장의 차별화된 핵심 스토리" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 60px; resize: vertical;"></textarea></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">타겟 고객</div>
-                            <div><input type="text" id="aeo-target-customers" class="form-control" placeholder="예: 군인, 가족 모임" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">주변 맥락 (지역 정보)</div>
-                            <div><input type="text" id="aeo-local-context" class="form-control" placeholder="예: 인근 군부대, 골프장 등 위치 특성" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">진행 중인 이벤트</div>
-                            <div><input type="text" id="aeo-events" class="form-control" placeholder="예: 군인 장병 방문 시 음료 서비스" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
+                        <!-- Step 1: 매장명 입력 -->
+                        <div class="wizard-panel active" id="wizard-panel-1">
+                            <p style="color: var(--text-muted); margin-bottom: 6px; font-size: 0.93rem;">
+                                매장명만 입력하면 AI가 니치 키워드·Seenow URL·경쟁사·모니터링 질문을 자동으로 생성합니다.
+                            </p>
+                            <div class="store-name-input-wrap">
+                                <input type="text" id="wizard-store-name"
+                                    placeholder="예: 설맥 가평현리점"
+                                    autocomplete="off" />
+                                <button class="btn-autocomplete" id="btn-autocomplete-start">
+                                    <span id="autocomplete-btn-icon">✨</span> AI 자동완성
+                                </button>
+                            </div>
+                            <div class="ai-loading-box" id="ai-loading-box">
+                                <div class="ai-spinner"></div>
+                                <span id="ai-loading-text">Claude AI가 매장 정보를 분석 중입니다...</span>
+                            </div>
+                        </div>
 
-                            <!-- 네이버 플레이스 정보 -->
-                            <div style="grid-column: span 2; border-top: 1px solid #eee; margin-top: 10px; padding-top: 15px; font-weight: bold; color: #185FA5;">네이버 플레이스 정보</div>
-                            
-                            <div style="font-weight: bold; align-self: center;">플레이스 URL</div>
-                            <div><input type="text" id="aeo-naver-url" class="form-control" placeholder="https://map.naver.com/p/entry/place/..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">현재 소개글</div>
-                            <div><textarea id="aeo-naver-current" class="form-control" placeholder="현재 등록된 플레이스 소개글" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 60px; resize: vertical;"></textarea></div>
+                        <!-- Step 2: 자동완성 결과 검토 -->
+                        <div class="wizard-panel" id="wizard-panel-2">
+                            <div class="save-success-banner" id="save-success-banner">
+                                ✅ 설정이 저장되었습니다! 이제 콘텐츠 생성 탭에서 리스티클을 만들어보세요.
+                            </div>
 
-                            <div style="font-weight: bold; align-self: center;">최적화 소개글</div>
-                            <div><textarea id="aeo-naver-optimized" class="form-control" placeholder="최적화된 플레이스 소개글" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 60px; resize: vertical;"></textarea></div>
-                            
-                            <!-- 구글 비즈니스 프로필 정보 -->
-                            <div style="grid-column: span 2; border-top: 1px solid #eee; margin-top: 10px; padding-top: 15px; font-weight: bold; color: #3B6D11;">구글 비즈니스 프로필 정보</div>
-                            
-                            <div style="font-weight: bold; align-self: center;">비즈니스 프로필 URL</div>
-                            <div><input type="text" id="aeo-google-url" class="form-control" placeholder="https://business.google.com/..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></div>
-                            
-                            <div style="font-weight: bold; align-self: center;">현재 설명</div>
-                            <div><textarea id="aeo-google-current" class="form-control" placeholder="현재 등록된 구글 비즈니스 프로필 설명" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 60px; resize: vertical;"></textarea></div>
+                            <!-- 니치 키워드 -->
+                            <div class="autocomplete-result-section">
+                                <h4>🎯 니치 키워드 <span style="font-size:0.8rem; font-weight:400; color:#888;">— 체크한 키워드가 저장됩니다</span></h4>
+                                <div class="niche-keyword-chips" id="niche-keyword-chips">
+                                    <!-- JS 렌더링 -->
+                                </div>
+                            </div>
 
-                            <div style="font-weight: bold; align-self: center;">최적화 설명</div>
-                            <div><textarea id="aeo-google-optimized" class="form-control" placeholder="최적화된 구글 비즈니스 프로필 설명" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 60px; resize: vertical;"></textarea></div>
-                        </div>
-                        
-                        <div style="margin-top: 20px; text-align: right; border-top: 1px solid #eee; padding-top: 15px;">
-                            <button class="btn btn-primary" id="btn-save-aeo-marketing" style="padding: 10px 25px; font-weight: bold;">저장</button>
+                            <!-- Seenow URL -->
+                            <div class="autocomplete-result-section">
+                                <h4>🔗 Seenow 미니홈피 URL <span style="font-size:0.8rem; font-weight:400; color:#888;">— 수정 가능</span></h4>
+                                <div class="seenow-url-input">
+                                    <span class="seenow-url-prefix">seenow.kr/</span>
+                                    <input type="text" id="seenow-url-slug"
+                                        placeholder="sulmaek-hyunri" />
+                                </div>
+                            </div>
+
+                            <!-- 경쟁사 후보 -->
+                            <div class="autocomplete-result-section">
+                                <h4>⚔️ 경쟁사 후보 <span style="font-size:0.8rem; font-weight:400; color:#888;">— 체크한 경쟁사가 저장됩니다</span></h4>
+                                <div class="competitor-candidates" id="competitor-candidates">
+                                    <!-- JS 렌더링 -->
+                                </div>
+                            </div>
+
+                            <!-- 모니터링 질문 미리보기 -->
+                            <div class="autocomplete-result-section">
+                                <h4>❓ 모니터링 질문 <span id="queries-count-badge" style="font-size:0.8rem; font-weight:400; color:#888;">— 0개 생성됨</span></h4>
+                                <div class="queries-preview">
+                                    <ol id="queries-preview-list">
+                                        <!-- JS 렌더링 -->
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <!-- 저장 버튼 -->
+                            <div style="display: flex; gap: 12px; margin-top: 8px;">
+                                <button class="btn btn-secondary" id="btn-wizard-back"
+                                    style="flex: 0 0 auto;">← 다시 입력</button>
+                                <button class="btn btn-primary" id="btn-wizard-save"
+                                    style="flex: 1; font-size: 1rem;">💾 설정 저장</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="card">
-                        <h3>모니터링 질문 리스트</h3>
-                        <ul id="settings-queries-list" style="margin-top: 15px; padding-left: 20px;">
-                            <!-- Loaded via JS from currentStore -->
-                        </ul>
-                        <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <input type="text" id="new-query-input" class="form-control" placeholder="새 질문 추가" style="flex: 1; padding: 8px;">
-                            <button class="btn btn-secondary" id="btn-add-query">추가</button>
+
+                    <!-- ===== 고급 설정 (접기/펼치기) ===== -->
+                    <div class="card settings-advanced-section">
+                        <div class="settings-advanced-toggle" id="settings-advanced-toggle">
+                            <span id="settings-advanced-arrow">▶</span>
+                            고급 설정 (기존 매장 정보 직접 수정)
+                        </div>
+                        <div class="settings-advanced-body" id="settings-advanced-body">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <strong>업체 정보</strong>
+                                <button class="btn btn-secondary" id="btn-edit-store-info" style="font-size:0.85rem; padding: 6px 14px;">수정</button>
+                            </div>
+                            <div id="settings-store-info" style="display: grid; grid-template-columns: 110px 1fr; gap: 10px; margin-bottom: 20px;">
+                                <!-- JS 렌더링 -->
+                            </div>
+
+                            <strong style="display:block; margin-bottom:8px;">모니터링 질문 리스트</strong>
+                            <ul id="settings-queries-list" style="margin-bottom: 12px; padding-left: 20px;"></ul>
+                            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                                <input type="text" id="new-query-input" class="form-control"
+                                    placeholder="새 질문 추가" style="flex: 1; padding: 8px;">
+                                <button class="btn btn-secondary" id="btn-add-query">추가</button>
+                            </div>
+
+                            <strong style="display:block; margin-bottom:8px;">경쟁사 관리</strong>
+                            <ul id="settings-competitors-list" style="margin-bottom: 12px; padding-left: 20px;"></ul>
+                            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                                <input type="text" id="new-competitor-input" class="form-control"
+                                    placeholder="경쟁사 이름" style="flex: 1; padding: 8px;">
+                                <input type="text" id="new-competitor-address" class="form-control"
+                                    placeholder="주소 (선택)" style="flex: 2; padding: 8px;">
+                                <button class="btn btn-secondary" id="btn-add-competitor">추가</button>
+                            </div>
+
+                            <button class="btn btn-primary" id="btn-save-settings">설정 저장 (직접 수정 내용)</button>
                         </div>
                     </div>
-                    <div class="card" style="margin-top: 20px;">
-                        <h3>경쟁사 관리</h3>
-                        <ul id="settings-competitors-list" style="margin-top: 15px; padding-left: 20px;">
-                            <!-- Loaded via JS from currentStore -->
-                        </ul>
-                        <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <input type="text" id="new-competitor-input" class="form-control" placeholder="새 경쟁사 이름 추가" style="flex: 1; padding: 8px;">
-                            <input type="text" id="new-competitor-address" class="form-control" placeholder="주소 (예: 경기 가평군 조종면 ○○)" style="flex: 2; padding: 8px;">
-                            <button class="btn btn-secondary" id="btn-add-competitor">추가</button>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-top: 20px;">
-                        <button class="btn btn-primary" id="btn-save-settings">설정 저장 (매장 정보 및 질문)</button>
-                    </div>
+
+                    <!-- 기존 AEO 마케팅 정보 (숨김, 호환용) -->
+                    <input type="hidden" id="aeo-intro-textarea">
+                    <input type="hidden" id="aeo-price-range">
+                    <input type="hidden" id="aeo-parking">
+                    <input type="hidden" id="aeo-capacity">
+                    <input type="hidden" id="aeo-private-room">
+                    <input type="hidden" id="aeo-story">
+                    <input type="hidden" id="aeo-target-customers">
+                    <input type="hidden" id="aeo-local-context">
+                    <input type="hidden" id="aeo-events">
+                    <input type="hidden" id="aeo-naver-url">
+                    <input type="hidden" id="aeo-naver-current">
+                    <input type="hidden" id="aeo-naver-optimized">
+                    <input type="hidden" id="aeo-google-url">
+                    <input type="hidden" id="aeo-google-current">
+                    <input type="hidden" id="aeo-google-optimized">
+                    <button id="btn-save-aeo-marketing" style="display:none;"></button>
+                    <button id="btn-analyze-aeo" style="display:none;"></button>
+
                 </section>
             </div>
         </main>
@@ -556,8 +744,8 @@
     <!-- Bottom Tab Bar (Mobile Only) -->
     <nav class="bottom-tab-bar" id="bottom-menu">
         <ul>
-            <li data-target="page-dashboard" class="active"><span class="icon">📊</span><span class="label">대시보드</span></li>
-            <li data-target="page-analysis"><span class="icon">🔍</span><span class="label">진단분석</span></li>
+            <li data-target="page-dashboard" class="active"><span class="icon">🏠</span><span class="label">홈</span></li>
+            <li data-target="page-geo-diagnosis"><span class="icon">🔍</span><span class="label">GEO진단</span></li>
             <li data-target="page-content"><span class="icon">✍️</span><span class="label">콘텐츠</span></li>
             <li data-target="page-monitoring"><span class="icon">📈</span><span class="label">모니터링</span></li>
             <li class="more-menu-btn" onclick="document.getElementById('more-menu-overlay').style.display='flex'"><span class="icon">⋯</span><span class="label">더보기</span></li>
@@ -567,7 +755,7 @@
     <!-- More Menu Overlay (Mobile Only) -->
     <div class="more-menu-overlay" id="more-menu-overlay" style="display: none;">
         <ul id="more-menu-list">
-            <li data-target="page-competitor"><span class="icon">⚔️</span><span class="label">경쟁사</span></li>
+            <li data-target="page-distribution"><span class="icon">🚀</span><span class="label">채널배포</span></li>
             <li data-target="page-report"><span class="icon">📄</span><span class="label">리포트</span></li>
             <li data-target="page-settings"><span class="icon">⚙️</span><span class="label">설정</span></li>
         </ul>
@@ -652,7 +840,30 @@
             <button id="btn-close-content-modal-top" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
             <h3 id="content-view-title" style="margin-top: 0; margin-bottom: 5px;">콘텐츠 보기</h3>
             <div style="font-size: 13px; color: #666; margin-bottom: 15px;">생성일: <span id="content-view-date"></span></div>
-            <div id="content-view-body" style="flex: 1; overflow-y: auto; white-space: pre-wrap; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; line-height: 1.6; margin-bottom: 20px; min-height: 200px;"></div>
+            <div id="content-view-body" style="flex: 1; overflow-y: auto; white-space: pre-wrap; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; line-height: 1.6; margin-bottom: 15px; min-height: 200px;"></div>
+            
+            <!-- 증거유닛 요약 표시 영역 (Phase 3) -->
+            <div id="content-view-evidence" class="evidence-section" style="display: none;">
+                <div class="evidence-title">🕵️ 신뢰성 검증용 4대 증거유닛 내역</div>
+                <div class="evidence-grid">
+                    <div class="evidence-badge-item badge-stat">
+                        <strong>📊 수치/통계</strong>
+                        <span id="ev-stat">—</span>
+                    </div>
+                    <div class="evidence-badge-item badge-quote">
+                        <strong>💬 인용구</strong>
+                        <span id="ev-quote">—</span>
+                    </div>
+                    <div class="evidence-badge-item badge-source">
+                        <strong>🔍 출처</strong>
+                        <span id="ev-source">—</span>
+                    </div>
+                    <div class="evidence-badge-item badge-compare">
+                        <strong>⚖️ 비교 설명</strong>
+                        <span id="ev-compare">—</span>
+                    </div>
+                </div>
+            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button class="btn btn-primary" id="btn-copy-content" style="padding: 8px 16px;">복사하기</button>
                 <button class="btn btn-secondary" id="btn-close-content-modal" style="padding: 8px 16px;">닫기</button>
