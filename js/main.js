@@ -2228,7 +2228,13 @@ async function loadCompetitorAnalysis() {
 
         // 시간 무관, 가장 최근 분석 배치 기준
         const latestTime = history[0]?.created_at;
-        const recentRows = latestTime ? history.filter(r => r.created_at === latestTime) : [];
+        // 날짜 비교 시 초 단위로 반올림해서 비교
+        const latestSec = latestTime ? latestTime.substring(0, 19) : null;
+        const recentRows = latestSec
+            ? history.filter(r => r.created_at.substring(0, 19) === latestSec)
+            : [];
+        console.log('latestSec:', latestSec);
+        console.log('recentRows:', recentRows.length);
 
         const targets = [
             { isCompetitor: false, name: currentStore.store_name || '우리 매장' },
