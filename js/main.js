@@ -854,23 +854,61 @@ function renderWizardStep2(data) {
     // 1) 니치 키워드 칩 렌더링
     const chipsEl = document.getElementById('niche-keyword-chips');
     if (chipsEl && data.niche_keywords) {
-        chipsEl.innerHTML = data.niche_keywords.map((kw, i) => `
-            <label class="niche-keyword-chip checked" id="chip-${i}">
-                <input type="checkbox" value="${escapeHtml(kw)}" checked>
-                <span class="chip-check">✓</span>
-                ${escapeHtml(kw)}
-            </label>
-        `).join('');
+        function renderNicheChips(keywords) {
+            chipsEl.innerHTML = keywords.map((kw, i) => `
+                <label class="niche-keyword-chip checked" id="chip-${i}">
+                    <input type="checkbox" value="${escapeHtml(kw)}" checked>
+                    <span class="chip-check">✓</span>
+                    ${escapeHtml(kw)}
+                </label>
+            `).join('');
 
-        // 칩 토글 이벤트
-        chipsEl.querySelectorAll('.niche-keyword-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const cb = chip.querySelector('input[type="checkbox"]');
-                cb.checked = !cb.checked;
-                chip.classList.toggle('checked', cb.checked);
-                chip.querySelector('.chip-check').textContent = cb.checked ? '✓' : '';
+            // 칩 토글 이벤트
+            chipsEl.querySelectorAll('.niche-keyword-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const cb = chip.querySelector('input[type="checkbox"]');
+                    cb.checked = !cb.checked;
+                    chip.classList.toggle('checked', cb.checked);
+                    chip.querySelector('.chip-check').textContent = cb.checked ? '✓' : '';
+                });
             });
-        });
+        }
+
+        renderNicheChips(data.niche_keywords);
+
+        // 직접 입력 기능 추가 및 이벤트 바인딩
+        const btnAdd = document.getElementById('btn-add-niche-keyword');
+        const inputEl = document.getElementById('niche-keyword-input');
+        if (btnAdd && inputEl) {
+            const newBtnAdd = btnAdd.cloneNode(true);
+            btnAdd.parentNode.replaceChild(newBtnAdd, btnAdd);
+            
+            const addFn = () => {
+                const val = inputEl.value.trim();
+                if (!val) return;
+                
+                const existing = Array.from(chipsEl.querySelectorAll('input[type="checkbox"]')).map(cb => cb.value);
+                if (existing.includes(val)) {
+                    alert('이미 등록된 키워드입니다.');
+                    return;
+                }
+                
+                data.niche_keywords.push(val);
+                renderNicheChips(data.niche_keywords);
+                
+                inputEl.value = '';
+                inputEl.focus();
+            };
+            
+            newBtnAdd.addEventListener('click', addFn);
+            
+            inputEl.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addFn();
+                }
+            };
+        }
     }
 
     // 2) Seenow URL 슬러그
