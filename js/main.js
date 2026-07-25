@@ -714,12 +714,12 @@ async function runAutoComplete(storeName) {
     loadingBox.classList.add('show');
 
     try {
-        // 1단계 로딩 메시지 표시 및 ChatGPT 호출
-        loadingTxt.textContent = "ChatGPT가 매장 정보를 검색 중...";
+        // 1단계: "ChatGPT와 Gemini가 매장 정보를 검색 중..."
+        loadingTxt.textContent = "ChatGPT와 Gemini가 매장 정보를 검색 중...";
         
-        const storeInfoPrompt = `
-"${storeName}"에 대해 검색해서 아래 정보를 JSON으로 알려줘.
-모르는 정보는 빈 문자열로 표시.
+        const chatgptPrompt = `
+경기도 가평군 조종면에 위치한 "${storeName}" 매장을 검색해서
+아래 JSON 형식으로 알려줘. 모르면 빈 문자열.
 {
   "address": "주소",
   "category": "업종",
@@ -731,16 +731,81 @@ async function runAutoComplete(storeName) {
 JSON만 출력.
 `.trim();
 
-        let storeInfo = "";
+        const geminiPrompt = `
+경기도 가평군 조종면에 위치한 "${storeName}" 매장을 구글에서 검색해서
+아래 JSON 형식으로 알려줘. 모르면 빈 문자열.
+{
+  "address": "주소",
+  "category": "업종",
+  "menu": ["메뉴1", "메뉴2"],
+  "hours": "영업시간",
+  "features": "특징 (단체룸, 주차, 규모 등)",
+  "nearby": "주변 특징 (군부대, 골프장 등)"
+}
+JSON만 출력.
+`.trim();
+
+        let chatgptText = "";
+        let geminiText = "";
+
+        // ChatGPT + Gemini 병렬 호출
         try {
-            const chatgptResult = await apiService.callChatGPT(storeInfoPrompt);
-            storeInfo = chatgptResult.data || chatgptResult.content || chatgptResult.text || chatgptResult.response || "";
-            console.log("ChatGPT 매장 정보 응답:", storeInfo);
-        } catch (chatgptErr) {
-            console.warn("ChatGPT 매장 정보 검색 실패 (빈 문자열 폴백):", chatgptErr);
+            const [chatgptResult, geminiResult] = await Promise.all([
+                apiService.callChatGPT(chatgptPrompt).catch(err => {
+                    console.warn("ChatGPT 매장 검색 실패:", err);
+                    return { data: "" };
+                }),
+                apiService.callGemini(geminiPrompt).catch(err => {
+                    console.warn("Gemini 매장 검색 실패:", err);
+                    return { data: "" };
+                })
+            ]);
+            chatgptText = chatgptResult.data || chatgptResult.content || chatgptResult.text || chatgptResult.response || "";
+            geminiText = geminiResult.data || geminiResult.content || geminiResult.text || geminiResult.response || "";
+        } catch (e) {
+            console.warn("병렬 검색 호출 중 예외 발생:", e);
         }
 
-        // 2단계 로딩 메시지 표시
+        // 2단계: "수집된 정보를 분석 중..."
+        loadingTxt.textContent = "수집된 정보를 분석 중...";
+
+        function parseModelJson(responseText) {
+            if (!responseText) return {};
+            let jsonStr = responseText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+            const startIdx = jsonStr.indexOf('{');
+            const endIdx = jsonStr.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1) {
+                jsonStr = jsonStr.substring(startIdx, endIdx + 1);
+            }
+            try {
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.warn('Failed to parse model JSON:', e);
+                return {};
+            }
+        }
+
+        const chatgptInfo = parseModelJson(chatgptText);
+        const geminiInfo = parseModelJson(geminiText);
+
+        const chatgptMenu = Array.isArray(chatgptInfo.menu) ? chatgptInfo.menu : [];
+        const geminiMenu = Array.isArray(geminiInfo.menu) ? geminiInfo.menu : [];
+
+        const mergedInfo = {
+            address: chatgptInfo.address || geminiInfo.address || '',
+            category: chatgptInfo.category || geminiInfo.category || '',
+            menu: chatgptMenu.length ? chatgptMenu : geminiMenu,
+            hours: chatgptInfo.hours || geminiInfo.hours || '',
+            features: chatgptInfo.features || geminiInfo.features || '',
+            nearby: chatgptInfo.nearby || geminiInfo.nearby || ''
+        };
+
+        // 콘솔 로그 추가
+        console.log('ChatGPT 수집 결과:', chatgptInfo);
+        console.log('Gemini 수집 결과:', geminiInfo);
+        console.log('병합된 매장 정보:', mergedInfo);
+
+        // 3단계: "Claude가 키워드를 생성 중..."
         loadingTxt.textContent = "Claude가 키워드를 생성 중...";
 
         const prompt = `
@@ -748,7 +813,7 @@ JSON만 출력.
 아래 매장 정보와 매장명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
 
 매장명: ${storeName}
-매장 정보: ${storeInfo}
+수집된 매장 정보: ${JSON.stringify(mergedInfo)}
 
 출력 형식 (JSON만, 다른 텍스트 없이):
 {
