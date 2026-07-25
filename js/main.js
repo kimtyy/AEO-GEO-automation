@@ -388,6 +388,18 @@ function initNavigation() {
             const targetId = item.getAttribute('data-target');
             if (!targetId) return;
 
+            // 매장 설정 완료 여부 체크 (설정 탭이 아닌 다른 탭 클릭 시)
+            if (targetId !== 'page-settings') {
+                if (!currentStore || !currentStore.store_name) {
+                    alert('⚠️ 먼저 설정 탭에서 매장 정보를 입력해주세요.');
+                    const settingsItem = Array.from(menuItems).find(m => m.getAttribute('data-target') === 'page-settings');
+                    if (settingsItem) {
+                        settingsItem.click();
+                    }
+                    return;
+                }
+            }
+
             // Update Active Menu
             menuItems.forEach(m => m.classList.remove('active'));
             // 만약 동일한 targetId를 가진 메뉴가 있다면 모두 active 처리
@@ -1072,13 +1084,26 @@ async function saveWizardResult() {
         Object.assign(currentStore, updateData);
 
         // 저장 성공 UI
-        document.getElementById('save-success-banner').classList.add('show');
+        const banner = document.getElementById('save-success-banner');
+        if (banner) {
+            banner.textContent = '✅ 저장 완료! GEO 진단으로 이동합니다...';
+            banner.classList.add('show');
+        }
         // Step 3 인디케이터
         const steps = document.querySelectorAll('.wizard-step');
         steps.forEach(s => s.classList.remove('active'));
         steps.forEach(s => s.classList.add('done'));
 
         await loadStoreData(); // 고급 설정 섹션 리로드
+
+        // 1초 후 GEO 진단 탭으로 자동 이동
+        setTimeout(() => {
+            const diagItem = Array.from(document.querySelectorAll('#sidebar-menu li, #bottom-menu li:not(.more-menu-btn), #more-menu-list li'))
+                                .find(m => m.getAttribute('data-target') === 'page-geo-diagnosis');
+            if (diagItem) {
+                diagItem.click();
+            }
+        }, 1000);
 
     } catch (err) {
         console.error('Wizard save error:', err);

@@ -19,13 +19,13 @@
             <div class="logo">AEO/GEO</div>
             <nav>
                 <ul id="sidebar-menu">
-                    <li data-target="page-dashboard" class="active">홈</li>
+                    <li data-target="page-settings" class="active">설정</li>
                     <li data-target="page-geo-diagnosis">GEO 진단</li>
                     <li data-target="page-content">콘텐츠 생성</li>
                     <li data-target="page-distribution">채널 배포</li>
                     <li data-target="page-monitoring">모니터링</li>
                     <li data-target="page-report">리포트</li>
-                    <li data-target="page-settings">설정</li>
+                    <li data-target="page-dashboard">홈</li>
                 </ul>
             </nav>
         </aside>
@@ -34,7 +34,7 @@
         <main class="main-content">
             <header style="display: flex; flex-direction: column; gap: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h2 id="page-title">대시보드</h2>
+                    <h2 id="page-title">설정</h2>
                     <div class="store-selector-container">
                         <select id="store-selector" class="form-control" style="width: auto; min-width: 150px;">
                             <option value="" disabled selected>매장 불러오는 중...</option>
@@ -48,7 +48,7 @@
 
             <div class="page-container">
                 <!-- Dashboard Page -->
-                <section id="page-dashboard" class="page active">
+                <section id="page-dashboard" class="page">
                     <!-- KPIs -->
                     <div class="kpi-grid">
                         <div class="kpi-card">
@@ -623,7 +623,7 @@
                 </section>
 
                 <!-- Settings Page — AI 자동완성 마법사 -->
-                <section id="page-settings" class="page">
+                <section id="page-settings" class="page active">
 
                     <!-- ===== 마법사 Step 인디케이터 ===== -->
                     <div class="card" style="padding: 24px 28px 16px;">
@@ -777,10 +777,9 @@
         </main>
     </div>
 
-    <!-- Bottom Tab Bar (Mobile Only) -->
     <nav class="bottom-tab-bar" id="bottom-menu">
         <ul>
-            <li data-target="page-dashboard" class="active"><span class="icon">🏠</span><span class="label">홈</span></li>
+            <li data-target="page-settings" class="active"><span class="icon">⚙️</span><span class="label">설정</span></li>
             <li data-target="page-geo-diagnosis"><span class="icon">🔍</span><span class="label">GEO진단</span></li>
             <li data-target="page-content"><span class="icon">✍️</span><span class="label">콘텐츠</span></li>
             <li data-target="page-monitoring"><span class="icon">📈</span><span class="label">모니터링</span></li>
@@ -793,7 +792,7 @@
         <ul id="more-menu-list">
             <li data-target="page-distribution"><span class="icon">🚀</span><span class="label">채널배포</span></li>
             <li data-target="page-report"><span class="icon">📄</span><span class="label">리포트</span></li>
-            <li data-target="page-settings"><span class="icon">⚙️</span><span class="label">설정</span></li>
+            <li data-target="page-dashboard"><span class="icon">🏠</span><span class="label">홈</span></li>
         </ul>
         <button class="btn btn-secondary" style="width: 90%; margin: 20px auto; display: block;" onclick="document.getElementById('more-menu-overlay').style.display='none'">닫기</button>
     </div>
