@@ -2207,6 +2207,10 @@ async function loadCompetitorAnalysis() {
         // 수정 D: loadCompetitorAnalysis() mode 필터 제거
         const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
 
+        console.log('competitors:', competitors?.length);
+        console.log('history:', history?.length);
+        console.log('history[0]:', history?.[0]);
+
         if (!competitors || competitors.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
             return;
