@@ -2198,6 +2198,7 @@ async function loadMonitoringHistory() {
 }
 
 async function loadCompetitorAnalysis() {
+    console.log('🔍 loadCompetitorAnalysis 호출됨');
     const tableBody = document.getElementById('competitor-table-body');
     if (!tableBody) return;
 
