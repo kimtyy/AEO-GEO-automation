@@ -391,7 +391,7 @@ function initNavigation() {
             // 매장 설정 완료 여부 체크 (설정 탭이 아닌 다른 탭 클릭 시)
             if (targetId !== 'page-settings') {
                 if (!currentStore || !currentStore.store_name) {
-                    alert('⚠️ 먼저 설정 탭에서 매장 정보를 입력해주세요.');
+                    showToast('⚠️ 먼저 설정 탭에서 매장 정보를 입력해주세요.');
                     const settingsItem = Array.from(menuItems).find(m => m.getAttribute('data-target') === 'page-settings');
                     if (settingsItem) {
                         settingsItem.click();
@@ -3314,6 +3314,57 @@ function renderChannelPreview(content, channel) {
     }
 
     previewArea.innerHTML = html;
+}
+
+/**
+ * 인라인 토스트 메시지 표시 헬퍼
+ * @param {string} message - 표시할 안내 문구
+ */
+function showToast(message) {
+    const existing = document.getElementById('app-toast-message');
+    if (existing) {
+        existing.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.id = 'app-toast-message';
+    toast.textContent = message;
+    
+    // 동적 인라인 스타일 부여 (화면 상단 중앙, sleek 디자인)
+    Object.assign(toast.style, {
+        position: 'fixed',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'rgba(30, 41, 59, 0.95)',
+        color: '#ffffff',
+        padding: '12px 24px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        zIndex: '9999',
+        fontSize: '0.92rem',
+        fontWeight: '500',
+        pointerEvents: 'none',
+        opacity: '0',
+        transition: 'opacity 0.2s ease-in-out',
+        textAlign: 'center',
+        maxWidth: '90%',
+        wordBreak: 'keep-all'
+    });
+
+    document.body.appendChild(toast);
+
+    // reflow 트리거 후 페이드인
+    toast.offsetHeight;
+    toast.style.opacity = '1';
+
+    // 2초 후 페이드아웃 및 엘리먼트 제거
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.addEventListener('transitionend', () => {
+            toast.remove();
+        });
+    }, 2000);
 }
 
 
