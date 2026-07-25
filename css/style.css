@@ -961,6 +961,48 @@ canvas {
         width: 90% !important;
         margin: 20px auto !important;
     }
+
+    /* 터치 타겟 최적화 (버튼 & 인풋 44px) */
+    .btn, button, input[type="text"], input[type="number"], select, .form-control, .seenow-url-input input {
+        min-height: 44px;
+    }
+
+    /* 테이블 자동 반응형 처리 */
+    table, .data-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 폰트 크기 모바일 최적화 */
+    body {
+        font-size: 14px;
+    }
+    h2, h3 {
+        font-size: 1.25rem !important;
+    }
+
+    /* 설정 마법사 Step UI 모바일 최적화 */
+    .wizard-steps {
+        margin-bottom: 20px;
+    }
+    .wizard-step-label {
+        display: none; /* 모바일에서는 텍스트 라벨 숨기기 */
+    }
+    .wizard-step.active .wizard-step-label {
+        display: inline-block; /* 활성화된 스텝 라벨만 표시 */
+        font-size: 0.75rem;
+        max-width: 100px;
+        white-space: normal;
+        word-break: keep-all;
+    }
+    .wizard-step {
+        gap: 4px;
+    }
+    .wizard-step:not(:last-child)::after {
+        margin: 0 6px;
+    }
 }
 
 /* ================================================================
