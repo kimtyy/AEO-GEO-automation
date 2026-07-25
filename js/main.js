@@ -2200,7 +2200,7 @@ async function loadMonitoringHistory() {
 async function loadCompetitorAnalysis() {
     console.log('🔍 loadCompetitorAnalysis 호출됨');
     const tableBody = document.getElementById('competitor-table-body');
-
+    // tableBody 없어도 계속 진행
     try {
         if (!currentStore) return;
         
