@@ -426,6 +426,13 @@ function initNavigation() {
                 await updateDashboardData();
                 updateQarelScore();
             }
+            // GEO 진단 탭 진입 시 차트 강제 리사이즈 및 로드
+            if (targetId === 'page-geo-diagnosis') {
+                await loadCompetitorAnalysis();
+                await loadLatestDiagnosisResults();
+                if (window.nicheRadarChartInstance) window.nicheRadarChartInstance.resize();
+                if (window.competitorCompareChartInstance) window.competitorCompareChartInstance.resize();
+            }
             // 모니터링 탭 진입 시: 최신 주간 추세 로드 + 비용 경고 업데이트
             if (targetId === 'page-monitoring') {
                 loadMonitoringTrend();
@@ -1757,7 +1764,11 @@ function initAnalysis() {
             // UI에는 자사의 첫 번째 질문 결과만 대표로 표시
             setTimeout(() => {
                 analysisProgress.style.display = 'none';
-                analysisResults.style.display = 'block';
+                
+                // 수정 C: 차트 컨테이너 표시 후 차트 초기화/리사이즈
+                document.getElementById('analysis-results').style.display = 'block';
+                if (window.nicheRadarChartInstance) window.nicheRadarChartInstance.resize();
+                if (window.competitorCompareChartInstance) window.competitorCompareChartInstance.resize();
                 
                 if (flatResults.length > 0) {
                     const claudeFirst = flatResults.find(r => r.ai_name === 'Claude');
@@ -1798,7 +1809,12 @@ function initAnalysis() {
                     if (prescriptionEl) prescriptionEl.value = summary;
 
                     // Phase 5: 실시간 차트/테이블 및 홈 탭 대시보드 갱신
-                    loadCompetitorAnalysis();
+                    // 수정 D: 분석 완료 후 즉시 차트 강제 갱신
+                    (async () => {
+                        await loadCompetitorAnalysis();
+                        if (window.nicheRadarChartInstance) window.nicheRadarChartInstance.update();
+                        if (window.competitorCompareChartInstance) window.competitorCompareChartInstance.update();
+                    })();
                     loadLatestDiagnosisResults();
                     updateDashboardData();
                 }
@@ -2188,7 +2204,8 @@ async function loadCompetitorAnalysis() {
     try {
         if (!currentStore) return;
         const competitors = await supabaseService.getCompetitors(currentStore.id);
-        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
+        // 수정 D: loadCompetitorAnalysis() mode 필터 제거
+        const history = await supabaseService.getAnalysisHistory(currentStore.id);
 
         if (!competitors || competitors.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
@@ -2200,9 +2217,9 @@ async function loadCompetitorAnalysis() {
             return;
         }
 
-        // 가장 최근 분석 그룹 찾기
-        const recentDateStr = history[0].created_at;
-        const recentRows = history.filter(h => h.created_at === recentDateStr);
+        // 수정 B: recentRows 범위 확장 (최근 10분간의 데이터)
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const recentRows = history.filter(r => r.created_at >= tenMinutesAgo);
 
         const targets = [
             { isCompetitor: false, name: currentStore.store_name || '우리 매장' },
@@ -2288,7 +2305,10 @@ function updateGeoDiagnosisCharts(recentRows, competitors) {
     const selfRows = recentRows.filter(r => !r.query.includes('[경쟁사:'));
     const uniqueQueries = [...new Set(selfRows.map(r => r.query))];
     
-    const nicheScores = uniqueQueries.map(q => {
+    // 수정 C: 레이더 차트 라벨 최대 5개로 제한
+    const topQueries = uniqueQueries.slice(0, 5);
+    
+    const nicheScores = topQueries.map(q => {
         const qRows = selfRows.filter(r => r.query === q);
         let c_mentions = 0, c_total = 0;
         let m_mentions = 0, m_total = 0;
@@ -2309,7 +2329,7 @@ function updateGeoDiagnosisCharts(recentRows, competitors) {
         return Math.round(cRate * 0.4 + chRate * 0.4 + gRate * 0.2);
     });
     
-    chartService.updateNicheRadarChart(uniqueQueries, nicheScores);
+    chartService.updateNicheRadarChart(topQueries, nicheScores);
 
     // 2. 경쟁사 대비 AI 언급률 비교 막대 차트
     const datasets = [];

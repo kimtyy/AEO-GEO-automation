@@ -334,6 +334,7 @@ const chartService = {
                 }
             }
         });
+        window.nicheRadarChartInstance = nicheRadarChartInstance;
     },
 
     updateNicheRadarChart(labels, scores) {
@@ -361,6 +362,7 @@ const chartService = {
                 }
             }
         });
+        window.competitorCompareChartInstance = competitorCompareChartInstance;
     },
 
     updateCompetitorCompareChart(datasets) {
