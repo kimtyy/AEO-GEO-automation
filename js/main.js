@@ -732,11 +732,6 @@ async function runAutoComplete(storeName) {
     "키워드7"
   ],
   "seenow_slug": "영문-소문자-슬러그",
-  "competitors": [
-    {"name": "경쟁사명1", "address": "지역 주소"},
-    {"name": "경쟁사명2", "address": "지역 주소"},
-    {"name": "경쟁사명3", "address": "지역 주소"}
-  ],
   "monitoring_queries": [
     "질문1",
     "질문2",
@@ -749,7 +744,6 @@ async function runAutoComplete(storeName) {
 - niche_keywords: 매장명에서 추출한 지역+업종+상황 조합 키워드 7개
   예: "가평 현리 단체회식", "가평 군인 회식", "경기 북부 한식", "가평 맥주집", "현리 단체룸", "가평 고기집", "맹호부대 근처 식당"
 - seenow_slug: 매장명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
-- competitors: 동일 지역·업종 경쟁사 3개 (실제 존재할 법한 이름, 불확실하면 "[지역] [업종] A/B/C" 형식)
 - monitoring_queries: AI(ChatGPT/Claude/Gemini)에 물어볼 법한 실제 검색 질문 50개
   (지역+업종+상황 조합, "~추천해줘", "~어디가 좋아?", "~괜찮은 곳" 형식)
   질문이 정확히 50개여야 합니다.
@@ -885,19 +879,7 @@ function renderWizardStep2(data) {
         slugEl.value = data.seenow_slug;
     }
 
-    // 3) 경쟁사 후보
-    const compEl = document.getElementById('competitor-candidates');
-    if (compEl && data.competitors) {
-        compEl.innerHTML = data.competitors.map((c, i) => `
-            <div class="competitor-candidate-item">
-                <input type="checkbox" id="comp-${i}" value="${escapeHtml(c.name)}" data-address="${escapeHtml(c.address || '')}" checked>
-                <label for="comp-${i}">
-                    <strong>${escapeHtml(c.name)}</strong>
-                    ${c.address ? `<span style="color:#888; font-size:0.85rem;"> — ${escapeHtml(c.address)}</span>` : ''}
-                </label>
-            </div>
-        `).join('');
-    }
+
 
     // 4) 모니터링 질문 미리보기
     const qListEl  = document.getElementById('queries-preview-list');
@@ -952,15 +934,7 @@ async function saveWizardResult() {
         const res = await supabaseService.updateStore(currentStore.id, updateData);
         if (!res) throw new Error('Supabase 업데이트 실패');
 
-        // 선택된 경쟁사 저장 (기존 경쟁사 제거 후 재삽입)
-        const selectedComps = [];
-        document.querySelectorAll('#competitor-candidates input[type="checkbox"]:checked').forEach(cb => {
-            selectedComps.push({ name: cb.value, address: cb.dataset.address || '' });
-        });
 
-        for (const comp of selectedComps) {
-            await supabaseService.addCompetitor(currentStore.id, comp.name, comp.address);
-        }
 
         // currentStore 업데이트
         Object.assign(currentStore, updateData);
