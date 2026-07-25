@@ -712,13 +712,43 @@ async function runAutoComplete(storeName) {
     // 로딩 UI 시작
     btnStart.disabled = true;
     loadingBox.classList.add('show');
-    loadingTxt.textContent = `"${storeName}" 분석 중... 잠시만 기다려주세요.`;
 
-    const prompt = `
+    try {
+        // 1단계 로딩 메시지 표시 및 ChatGPT 호출
+        loadingTxt.textContent = "ChatGPT가 매장 정보를 검색 중...";
+        
+        const storeInfoPrompt = `
+"${storeName}"에 대해 검색해서 아래 정보를 JSON으로 알려줘.
+모르는 정보는 빈 문자열로 표시.
+{
+  "address": "주소",
+  "category": "업종",
+  "menu": ["메뉴1", "메뉴2"],
+  "hours": "영업시간",
+  "features": "특징 (단체룸, 주차, 규모 등)",
+  "nearby": "주변 특징 (군부대, 골프장 등)"
+}
+JSON만 출력.
+`.trim();
+
+        let storeInfo = "";
+        try {
+            const chatgptResult = await apiService.callChatGPT(storeInfoPrompt);
+            storeInfo = chatgptResult.data || chatgptResult.content || chatgptResult.text || chatgptResult.response || "";
+            console.log("ChatGPT 매장 정보 응답:", storeInfo);
+        } catch (chatgptErr) {
+            console.warn("ChatGPT 매장 정보 검색 실패 (빈 문자열 폴백):", chatgptErr);
+        }
+
+        // 2단계 로딩 메시지 표시
+        loadingTxt.textContent = "Claude가 키워드를 생성 중...";
+
+        const prompt = `
 당신은 한국 소상공인 GEO(Generative Engine Optimization) 전문가입니다.
-아래 매장명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
+아래 매장 정보와 매장명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
 
 매장명: ${storeName}
+매장 정보: ${storeInfo}
 
 출력 형식 (JSON만, 다른 텍스트 없이):
 {
@@ -741,7 +771,7 @@ async function runAutoComplete(storeName) {
 }
 
 규칙:
-- niche_keywords: 매장명에서 추출한 지역+업종+상황 조합 키워드 7개
+- niche_keywords: 매장명과 매장 정보를 활용하여 추출한 지역+업종+상황 조합 키워드 7개
   예: "가평 현리 단체회식", "가평 군인 회식", "경기 북부 한식", "가평 맥주집", "현리 단체룸", "가평 고기집", "맹호부대 근처 식당"
 - seenow_slug: 매장명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
 - monitoring_queries: AI(ChatGPT/Claude/Gemini)에 물어볼 법한 실제 검색 질문 50개
@@ -749,7 +779,6 @@ async function runAutoComplete(storeName) {
   질문이 정확히 50개여야 합니다.
 `.trim();
 
-    try {
         const result = await apiService.callClaude(prompt, 2000);
         const responseText = result.data || result.content || result.text || result.response || '';
         
