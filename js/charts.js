@@ -17,8 +17,22 @@ const chartService = {
         this.initQarelBarChart();
         this.initWeeklyTrendChart();    // Phase 2
         this.initMiniTrendChart();      // Phase 5
+
+        // 차트 초기화 전에 컨테이너를 잠깐 표시 (display:none 상태의 캔버스 0px 이슈 방지)
+        const container = document.getElementById('analysis-results');
+        let prevDisplay = '';
+        if (container) {
+            prevDisplay = container.style.display || '';
+            container.style.display = 'block';
+        }
+
         this.initNicheRadarChart();     // Phase 5
         this.initCompetitorCompareChart(); // Phase 5
+
+        // 원래 상태로 복원
+        if (container) {
+            container.style.display = prevDisplay;
+        }
     },
 
     initRadarChart() {
