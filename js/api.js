@@ -4,13 +4,17 @@ const apiService = {
     /**
      * Claude API 호출
      * @param {string} prompt 
+     * @param {number} max_tokens 
      */
-    async callClaude(prompt) {
+    async callClaude(prompt, max_tokens = null) {
         console.log("Calling Claude API via Serverless...");
+        const bodyPayload = { prompt };
+        if (max_tokens) bodyPayload.max_tokens = max_tokens;
+        
         const response = await fetch('/api/claude', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
+            body: JSON.stringify(bodyPayload)
         });
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));

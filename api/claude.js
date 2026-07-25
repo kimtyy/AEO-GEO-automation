@@ -3,7 +3,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  const { prompt } = req.body;
+  const { prompt, max_tokens } = req.body;
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt is required' });
   }
@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        max_tokens: max_tokens ? Number(max_tokens) : 4000,
         messages: [{ role: 'user', content: prompt }]
       })
     });

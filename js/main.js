@@ -756,11 +756,13 @@ async function runAutoComplete(storeName) {
 `.trim();
 
     try {
-        const result = await apiService.callClaude(prompt);
-        const text = result.content || result.text || result.response || '';
+        const result = await apiService.callClaude(prompt, 2000);
+        const responseText = result.data || result.content || result.text || result.response || '';
+        
+        console.log('AI 응답 원문:', responseText);
 
         // JSON 파싱 (마크다운 코드블록 제거)
-        let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        let jsonStr = responseText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
         // 첫 번째 { 부터 마지막 } 까지 추출
         const start = jsonStr.indexOf('{');
         const end   = jsonStr.lastIndexOf('}');
@@ -768,7 +770,78 @@ async function runAutoComplete(storeName) {
             jsonStr = jsonStr.substring(start, end + 1);
         }
 
-        const data = JSON.parse(jsonStr);
+        // 기본 폴백 데이터 정의
+        const defaultData = {
+            niche_keywords: [
+                `${storeName} 단체회식`, 
+                `${storeName} 맛집`, 
+                `${storeName} 술집`, 
+                `${storeName} 추천`, 
+                `가평 ${storeName}`,
+                `${storeName} 단체석`,
+                `${storeName} 회식장소`
+            ],
+            seenow_slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            competitors: [
+                { name: "가평 지역 경쟁사 A", address: "가평군 현리" },
+                { name: "가평 지역 경쟁사 B", address: "가평군" },
+                { name: "가평 지역 경쟁사 C", address: "가평군" }
+            ],
+            monitoring_queries: [
+                `${storeName} 단체 회식 장소 추천해줘`,
+                `${storeName} 맛집 알려줘`,
+                `가평 현리 ${storeName} 맛 어때?`,
+                `${storeName} 주차 공간 있어?`,
+                `현리에서 모임하기 좋은 ${storeName} 괜찮아?`
+            ]
+        };
+
+        // 잘린 JSON을 보정해주는 로컬 헬퍼 함수
+        function tryRepairJson(str) {
+            let repaired = str.trim();
+            let openBraces = 0;
+            let openBrackets = 0;
+            let inString = false;
+            let escape = false;
+            
+            for (let i = 0; i < repaired.length; i++) {
+                const char = repaired[i];
+                if (escape) { escape = false; continue; }
+                if (char === '\\') { escape = true; continue; }
+                if (char === '"') { inString = !inString; continue; }
+                if (!inString) {
+                    if (char === '{') openBraces++;
+                    if (char === '}') openBraces--;
+                    if (char === '[') openBrackets++;
+                    if (char === ']') openBrackets--;
+                }
+            }
+            
+            if (inString) repaired += '"';
+            while (openBrackets > 0) { repaired += ']'; openBrackets--; }
+            while (openBraces > 0) { repaired += '}'; openBraces--; }
+            
+            try {
+                return JSON.parse(repaired);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        let data;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch (parseErr) {
+            console.warn('JSON parsing failed. Attempting to repair truncated JSON:', parseErr);
+            const repaired = tryRepairJson(jsonStr);
+            if (repaired) {
+                data = Object.assign({}, defaultData, repaired);
+            } else {
+                console.warn('JSON repair failed. Using default fallback data.');
+                data = defaultData;
+            }
+        }
+
         window._wizardData = { storeName, ...data };
 
         renderWizardStep2(data);
