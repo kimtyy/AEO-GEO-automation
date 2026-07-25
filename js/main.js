@@ -2205,7 +2205,7 @@ async function loadCompetitorAnalysis() {
         if (!currentStore) return;
         const competitors = await supabaseService.getCompetitors(currentStore.id);
         // 수정 D: loadCompetitorAnalysis() mode 필터 제거
-        const history = await supabaseService.getAnalysisHistory(currentStore.id);
+        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
 
         if (!competitors || competitors.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
@@ -2217,9 +2217,9 @@ async function loadCompetitorAnalysis() {
             return;
         }
 
-        // 수정 B: recentRows 범위 확장 (최근 10분간의 데이터)
-        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-        const recentRows = history.filter(r => r.created_at >= tenMinutesAgo);
+        // 시간 무관, 가장 최근 분석 배치 기준
+        const latestTime = history[0]?.created_at;
+        const recentRows = latestTime ? history.filter(r => r.created_at === latestTime) : [];
 
         const targets = [
             { isCompetitor: false, name: currentStore.store_name || '우리 매장' },
@@ -2374,6 +2374,11 @@ function updateGeoDiagnosisCharts(recentRows, competitors) {
             borderWidth: 0
         });
     });
+
+    console.log('recentRows:', recentRows.length);
+    console.log('topQueries:', topQueries);
+    console.log('nicheScores:', nicheScores);
+    console.log('경쟁사 datasets:', datasets);
     
     chartService.updateCompetitorCompareChart(datasets);
 }
