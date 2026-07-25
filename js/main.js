@@ -782,11 +782,7 @@ async function runAutoComplete(storeName) {
                 `${storeName} 회식장소`
             ],
             seenow_slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-            competitors: [
-                { name: "가평 지역 경쟁사 A", address: "가평군 현리" },
-                { name: "가평 지역 경쟁사 B", address: "가평군" },
-                { name: "가평 지역 경쟁사 C", address: "가평군" }
-            ],
+            competitors: [],
             monitoring_queries: [
                 `${storeName} 단체 회식 장소 추천해줘`,
                 `${storeName} 맛집 알려줘`,
