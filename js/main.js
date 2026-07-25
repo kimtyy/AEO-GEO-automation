@@ -2200,25 +2200,29 @@ async function loadMonitoringHistory() {
 async function loadCompetitorAnalysis() {
     console.log('🔍 loadCompetitorAnalysis 호출됨');
     const tableBody = document.getElementById('competitor-table-body');
-    if (!tableBody) return;
 
     try {
         if (!currentStore) return;
-        const competitors = await supabaseService.getCompetitors(currentStore.id);
-        // 수정 D: loadCompetitorAnalysis() mode 필터 제거
-        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
+        
+        // competitors를 직접 조회
+        const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
+        console.log('competitors:', competitors.length);
 
-        console.log('competitors:', competitors?.length);
-        console.log('history:', history?.length);
-        console.log('history[0]:', history?.[0]);
-
-        if (!competitors || competitors.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
-            return;
+        if (competitors.length === 0) {
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">설정 페이지에서 경쟁사를 등록해주세요</td></tr>`;
+            }
+            // 차트는 비워두되 함수는 계속 진행
         }
 
+        // 수정 D: loadCompetitorAnalysis() mode 필터 제거
+        const history = await supabaseService.getAnalysisHistory(currentStore.id, 'monitoring');
+        console.log('history:', history?.length);
+
         if (!history || history.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">분석을 실행해주세요</td></tr>`;
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">분석을 실행해주세요</td></tr>`;
+            }
             return;
         }
 
@@ -2289,14 +2293,18 @@ async function loadCompetitorAnalysis() {
             }
         });
 
-        tableBody.innerHTML = html;
+        if (tableBody) {
+            tableBody.innerHTML = html;
+        }
 
         // GEO진단 차트 업데이트 실행
         updateGeoDiagnosisCharts(recentRows, competitors);
 
     } catch (error) {
         console.error('Failed to load competitor analysis:', error);
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>`;
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>`;
+        }
     }
 }
 
