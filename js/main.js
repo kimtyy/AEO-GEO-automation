@@ -2682,12 +2682,12 @@ function updateMonitoringCostWarning() {
     if (callEl) callEl.textContent = totalCalls.toLocaleString();
     if (timeEl) timeEl.textContent = ` — 약 ${mins}분 소요`;
 
-    // 질문 수 부족 경고
+    // 질문 수 부족 경고 (5개 미만 시)
     const warnEl  = document.getElementById('monitoring-query-warn');
     const countEl = document.getElementById('monitoring-query-count');
     if (warnEl && countEl) {
         countEl.textContent = qCount;
-        warnEl.style.display = qCount < 10 ? 'block' : 'none';
+        warnEl.style.display = qCount < 5 ? 'block' : 'none';
     }
 }
 
