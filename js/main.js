@@ -1871,20 +1871,14 @@ function initContentGeneration() {
         suggestList.style.display = 'none';
 
         try {
-            const prompt = `당신은 지역 맛집 및 핫플레이스 정보를 전문으로 다루는 지역 여행 매거진 기자입니다.
-니치 키워드인 "${nicheKeyword}"에 맞추어 제3자 매체가 객관적으로 추천하는 큐레이션 기사(리스티클)의 매력적인 제목 후보 5개를 생성해주세요.
-제목은 독자의 클릭률을 높이고 AI가 자연스럽게 인용하기 좋은 형식이어야 합니다.
+            const prompt = `당신은 JSON 변환기입니다. 아래 니치 키워드에 맞춰 큐레이션 기사(리스티클) 제목 5개를 생성하세요.
+니치 키워드: "${nicheKeyword}"
 
-출력 포맷 (반드시 아래의 단순 JSON 배열 포맷만 출력하고 다른 설명 문장은 제외하세요):
-[
-  "제목 후보 1",
-  "제목 후보 2",
-  "제목 후보 3",
-  "제목 후보 4",
-  "제목 후보 5"
-]`;
+반드시 마크다운, 표, 인사말, 설명 없이 순수 JSON 문자열 배열만 반환하세요.
+예시:
+["가평 현리 단체회식 추천 5선", "가평 현리 가성비 술집 모음", "맹호부대 부모님 회식 장소 BEST 5", "가평 조종면 모임하기 좋은 술집", "가평 현리 얼음맥주 맛집 큐레이션"]`;
             const result = await apiService.callClaude(prompt);
-            const text = result.content || result.text || result.response || result.data || '';
+            const text = result.data || result.content || result.text || result.response || '';
             
             let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
             const start = jsonStr.indexOf('[');
@@ -1892,10 +1886,17 @@ function initContentGeneration() {
             if (start !== -1 && end !== -1) {
                 jsonStr = jsonStr.substring(start, end + 1);
             }
-            const titles = JSON.parse(jsonStr);
+            let titles = [];
+            try {
+                titles = JSON.parse(jsonStr);
+            } catch(e) {
+                // 파싱 실패 시 텍스트에서 볼드/라인 추출  fallback
+                const lines = text.split('\n').map(l => l.replace(/^[*\s\d.#|-]+/, '').replace(/\*\*/g, '').trim()).filter(l => l.length > 5);
+                titles = lines.slice(0, 5);
+            }
 
             if (Array.isArray(titles) && titles.length > 0) {
-                suggestList.innerHTML = titles.map((title, index) => `
+                suggestList.innerHTML = titles.slice(0, 5).map((title, index) => `
                     <label class="title-suggestion-item" for="title-radio-${index}">
                         <input type="radio" name="listicle-title-option" id="title-radio-${index}" value="${escapeHtml(title)}">
                         <span>${escapeHtml(title)}</span>
@@ -2033,7 +2034,7 @@ async function generateListicle(title, nicheKeyword) {
 }`;
 
     const response = await apiService.callClaude(systemPrompt);
-    const content = response.content || response.text || response.response || response.data || '';
+    const content = response.data || response.content || response.text || response.response || '';
 
     // JSON 파싱
     let jsonStr = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
