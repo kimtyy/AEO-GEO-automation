@@ -629,6 +629,11 @@ async function loadStoreData() {
             await loadDistributionQueue();
         }
 
+        // 모니터링 질문 체크리스트 갱신
+        if (typeof renderMonitoringQueryChecklist === 'function') {
+            renderMonitoringQueryChecklist();
+        }
+
         if (typeof renderAnalysisOptions === 'function') {
             await renderAnalysisOptions();
         }
@@ -2619,6 +2624,40 @@ function initContentViewModal() {
 // ================================================================
 
 /**
+ * 질문 체크리스트 렌더링 (매장 변경 시 호출)
+ * 기본값: 상위 10개만 선택
+ */
+function renderMonitoringQueryChecklist() {
+    const container = document.getElementById('monitoring-query-checklist');
+    if (!container) return;
+
+    let queries = (currentStore && currentStore.queries) || [];
+    if (typeof queries === 'string') { try { queries = JSON.parse(queries); } catch(e) { queries = []; } }
+    queries = queries.slice(0, 50); // 최대 50개
+
+    if (queries.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 12px; font-size: 0.88rem;">등록된 질문이 없습니다. 설정 탭에서 질문을 먼저 생성해주세요.</div>';
+        updateMonitoringCostWarning();
+        return;
+    }
+
+    container.innerHTML = queries.map((q, i) => `
+        <label style="display: flex; align-items: flex-start; gap: 8px; padding: 5px 4px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid var(--border-color); user-select: none;">
+            <input type="checkbox" class="monitoring-query-cb" value="${escapeHtml(q)}" ${i < 10 ? 'checked' : ''}
+                style="margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--primary);">
+            <span style="color: var(--text-main); line-height: 1.4;">${escapeHtml(q)}</span>
+        </label>
+    `).join('');
+
+    // 체크박스 변경 → 비용 업데이트
+    container.querySelectorAll('.monitoring-query-cb').forEach(cb => {
+        cb.addEventListener('change', updateMonitoringCostWarning);
+    });
+
+    updateMonitoringCostWarning();
+}
+
+/**
  * 모니터링 탭 콘트롤 전체 초기화
  */
 function initMonitoringTab() {
@@ -2634,6 +2673,22 @@ function initMonitoringTab() {
         const el = document.getElementById(`monitoring-ai-${ai}`);
         if (el) el.addEventListener('change', updateMonitoringCostWarning);
     });
+
+    // 전체 선택 / 전체 해제
+    const btnSelectAll   = document.getElementById('btn-query-select-all');
+    const btnDeselectAll = document.getElementById('btn-query-deselect-all');
+    if (btnSelectAll) {
+        btnSelectAll.addEventListener('click', () => {
+            document.querySelectorAll('.monitoring-query-cb').forEach(cb => { cb.checked = true; });
+            updateMonitoringCostWarning();
+        });
+    }
+    if (btnDeselectAll) {
+        btnDeselectAll.addEventListener('click', () => {
+            document.querySelectorAll('.monitoring-query-cb').forEach(cb => { cb.checked = false; });
+            updateMonitoringCostWarning();
+        });
+    }
 
     btnStart.addEventListener('click', async () => {
         await runMonitoringCycle();
@@ -2660,12 +2715,12 @@ async function loadMonitoringTrend() {
 }
 
 /**
- * 비용 경고 및 시간 추정치 업데이트
+ * 비용 경고 및 시간 추정치 업데이트 (선택된 체크박스 기준)
  */
 function updateMonitoringCostWarning() {
-    let queries = (currentStore && currentStore.queries) || [];
-    if (typeof queries === 'string') { try { queries = JSON.parse(queries); } catch(e) { queries = []; } }
-    const qCount = Math.min(queries.length, 50);
+    // 체크된 질문 수 기준
+    const checkedBoxes = document.querySelectorAll('.monitoring-query-cb:checked');
+    const qCount = checkedBoxes.length;
 
     const repeatCount = parseInt(
         document.querySelector('input[name="monitoring-repeat"]:checked')?.value || 3
@@ -2681,6 +2736,10 @@ function updateMonitoringCostWarning() {
     const timeEl = document.getElementById('monitoring-time-estimate');
     if (callEl) callEl.textContent = totalCalls.toLocaleString();
     if (timeEl) timeEl.textContent = ` — 약 ${mins}분 소요`;
+
+    // 선택 질문 수 표시
+    const selectedCountEl = document.getElementById('monitoring-selected-query-count');
+    if (selectedCountEl) selectedCountEl.textContent = `${qCount}개 선택됨`;
 
     // 질문 수 부족 경고 (5개 미만 시)
     const warnEl  = document.getElementById('monitoring-query-warn');
@@ -2849,12 +2908,11 @@ async function runMonitoringCycle() {
     );
     if (selectedAIs.length === 0) { alert('AI를 1개 이상 선택해주세요.'); return; }
 
-    // 질문 목록 (최대 50개)
-    let queries = currentStore.queries || [];
-    if (typeof queries === 'string') { try { queries = JSON.parse(queries); } catch(e) { queries = []; } }
-    queries = queries.slice(0, 50);
+    // 선택된 체크박스 질문만 사용
+    const checkedBoxes = document.querySelectorAll('.monitoring-query-cb:checked');
+    const queries = Array.from(checkedBoxes).map(cb => cb.value);
     if (queries.length === 0) {
-        alert('모니터링 질문이 없습니다. 설정 탭에서 AI 자동완성으로 질문을 먼저 생성해주세요.');
+        alert('측정할 질문을 1개 이상 선택해주세요.');
         return;
     }
 

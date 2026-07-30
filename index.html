@@ -518,6 +518,21 @@
                             </div>
                         </div>
 
+                        <!-- 질문 선택 -->
+                        <div class="monitoring-option-row" style="align-items: flex-start;">
+                            <span class="monitoring-option-label" style="padding-top: 6px;">질문 선택</span>
+                            <div style="flex: 1;">
+                                <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                                    <button class="btn btn-secondary" id="btn-query-select-all" style="padding: 4px 12px; font-size: 12px;">전체 선택</button>
+                                    <button class="btn btn-secondary" id="btn-query-deselect-all" style="padding: 4px 12px; font-size: 12px;">전체 해제</button>
+                                    <span id="monitoring-selected-query-count" style="font-size: 12px; color: var(--text-muted); margin-left: 4px;"></span>
+                                </div>
+                                <div id="monitoring-query-checklist" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; background: var(--bg-main);">
+                                    <div style="text-align: center; color: #aaa; padding: 12px; font-size: 0.88rem;">매장을 선택하면 질문 목록이 표시됩니다.</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 질문 수 부족 경고 (JS 제어) -->
                         <div class="monitoring-query-warn" id="monitoring-query-warn" style="display:none;">
                             ⚠️ 질문이 5개 미만입니다 (<span id="monitoring-query-count">0</span>개). 신뢰구간이 불안정할 수 있습니다.
