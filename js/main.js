@@ -829,15 +829,55 @@ JSON만 출력.
         console.log('Gemini 수집 결과:', geminiInfo);
         console.log('병합된 업체 정보:', mergedInfo);
 
-        // 3단계: "Claude가 키워드를 생성 중..."
-        loadingTxt.textContent = "Claude가 키워드를 생성 중...";
+        // 3단계: ChatGPT(검색키워드 30개) + Gemini(AI대화형 20개) + Claude(키워드/슬러그) 병렬
+        loadingTxt.textContent = "모니터링 질문 + 키워드 생성 중...";
 
-        const prompt = `
+        const mergedInfoStr = JSON.stringify(mergedInfo);
+
+        // ── ChatGPT: 검색엔진 키워드형 30개 ──
+        const chatgptQueryPrompt = `
+당신은 네이버/구글 검색 키워드 전문가입니다.
+아래 업체를 찾는 고객이 실제로 네이버/구글에 입력하는 검색어 형태로 30개 생성해주세요.
+
+업체명: ${storeName}
+업체 정보: ${mergedInfoStr}
+
+아래 비율로:
+① 짧은 키워드형 (2~4단어) 10개
+   예: "가평 맥주집", "조종면 술집", "현리 호프"
+
+② 중간 검색형 (5~8단어) 10개
+   예: "가평 현리 단체회식 맥주집 추천"
+
+③ 긴 검색형 (9단어 이상) 10개
+   예: "가평 현리 30명 단체 회식 가능한 맥주집 어디야"
+
+반드시 JSON 배열로만 출력하세요. 마크다운, 설명, 번호 없이 ["검색어1", "검색어2", ...] 형태만.
+`.trim();
+
+        // ── Gemini: AI 대화형 질문 20개 ──
+        const geminiQueryPrompt = `
+당신은 AI 검색 사용자 시뮬레이터입니다.
+아래 업체를 찾는 고객이 AI(ChatGPT, Gemini, Claude)에게 자연어로 대화하듯 물어보는 질문 20개를 생성해주세요.
+
+업체명: ${storeName}
+업체 정보: ${mergedInfoStr}
+
+예시:
+- "가평 여행 코스 짜줘, 저녁에 맥주 한잔 하고 싶어"
+- "맹호부대 근처에서 단체 회식할 만한 술집 추천해줘"
+- "가평 당일치기인데 저녁에 시원하게 맥주 마실 곳 있어?"
+
+반드시 JSON 배열로만 출력하세요. 마크다운, 설명, 번호 없이 ["질문1", "질문2", ...] 형태만.
+`.trim();
+
+        // ── Claude: niche_keywords + seenow_slug만 ──
+        const claudePrompt = `
 당신은 한국 로컬 비즈니스 GEO(Generative Engine Optimization) 전문가입니다.
 아래 업체 정보와 업체명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
 
 업체명: ${storeName}
-수집된 업체 정보: ${JSON.stringify(mergedInfo)}
+수집된 업체 정보: ${mergedInfoStr}
 
 출력 형식 (JSON만, 다른 텍스트 없이):
 {
@@ -850,36 +890,66 @@ JSON만 출력.
     "키워드6",
     "키워드7"
   ],
-  "seenow_slug": "영문-소문자-슬러그",
-  "monitoring_queries": [
-    "질문1",
-    "질문2",
-    ...
-    "질문50"
-  ]
+  "seenow_slug": "영문-소문자-슬러그"
 }
 
 규칙:
 - niche_keywords: 업체명과 업체 정보를 활용하여 추출한 지역+업종+상황 조합 키워드 7개
   예: "가평 현리 단체회식", "가평 군인 회식", "경기 북부 한식", "가평 맥주집", "현리 단체룸", "가평 고기집", "맹호부대 근처 식당"
 - seenow_slug: 업체명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
-- monitoring_queries: AI(ChatGPT/Claude/Gemini)에 물어볼 법한 실제 검색 질문 50개
-  (지역+업종+상황 조합, "~추천해줘", "~어디가 좋아?", "~괜찮은 곳" 형식)
-  질문이 정확히 50개여야 합니다.
 `.trim();
 
-        const result = await apiService.callClaude(prompt, 2000);
-        const responseText = result.data || result.content || result.text || result.response || '';
-        
-        console.log('AI 응답 원문:', responseText);
+        // 3개 API 병렬 호출
+        const [chatgptQResult, geminiQResult, claudeResult] = await Promise.all([
+            apiService.callChatGPT(chatgptQueryPrompt, 1500).catch(err => {
+                console.warn("ChatGPT 질문 생성 실패:", err);
+                return { data: "[]" };
+            }),
+            apiService.callGemini(geminiQueryPrompt, 1500).catch(err => {
+                console.warn("Gemini 질문 생성 실패:", err);
+                return { data: "[]" };
+            }),
+            apiService.callClaude(claudePrompt, 1000).catch(err => {
+                console.warn("Claude 키워드 생성 실패:", err);
+                return { data: "{}" };
+            })
+        ]);
 
-        // JSON 파싱 (마크다운 코드블록 제거)
-        let jsonStr = responseText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-        // 첫 번째 { 부터 마지막 } 까지 추출
-        const start = jsonStr.indexOf('{');
-        const end   = jsonStr.lastIndexOf('}');
-        if (start !== -1 && end !== -1) {
-            jsonStr = jsonStr.substring(start, end + 1);
+        // ── 질문 파싱 헬퍼 (JSON 배열) ──
+        function parseJsonArray(responseObj) {
+            const text = responseObj.data || responseObj.content || responseObj.text || responseObj.response || '[]';
+            let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+            const startBracket = cleaned.indexOf('[');
+            const endBracket   = cleaned.lastIndexOf(']');
+            if (startBracket !== -1 && endBracket !== -1) {
+                cleaned = cleaned.substring(startBracket, endBracket + 1);
+            }
+            try {
+                const arr = JSON.parse(cleaned);
+                return Array.isArray(arr) ? arr.filter(q => typeof q === 'string' && q.trim()) : [];
+            } catch (e) {
+                console.warn('질문 JSON 파싱 실패:', e, cleaned.substring(0, 200));
+                return [];
+            }
+        }
+
+        const chatgptQueries = parseJsonArray(chatgptQResult);
+        const geminiQueries  = parseJsonArray(geminiQResult);
+
+        console.log(`ChatGPT 검색 키워드: ${chatgptQueries.length}개`, chatgptQueries);
+        console.log(`Gemini AI 대화형: ${geminiQueries.length}개`, geminiQueries);
+
+        // 중복 제거 후 최대 50개
+        const allQueries = Array.from(new Set([...chatgptQueries, ...geminiQueries])).slice(0, 50);
+        console.log(`병합 후 질문 총: ${allQueries.length}개`);
+
+        // ── Claude 응답 파싱 (niche_keywords + seenow_slug) ──
+        const claudeText = claudeResult.data || claudeResult.content || claudeResult.text || claudeResult.response || '';
+        let claudeJsonStr = claudeText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        const cStart = claudeJsonStr.indexOf('{');
+        const cEnd   = claudeJsonStr.lastIndexOf('}');
+        if (cStart !== -1 && cEnd !== -1) {
+            claudeJsonStr = claudeJsonStr.substring(cStart, cEnd + 1);
         }
 
         // 기본 폴백 데이터 정의
@@ -894,8 +964,7 @@ JSON만 출력.
                 `${storeName} 회식장소`
             ],
             seenow_slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-            competitors: [],
-            monitoring_queries: [
+            monitoring_queries: allQueries.length > 0 ? allQueries : [
                 `${storeName} 단체 회식 장소 추천해줘`,
                 `${storeName} 맛집 알려줘`,
                 `가평 현리 ${storeName} 맛 어때?`,
@@ -938,10 +1007,10 @@ JSON만 출력.
 
         let data;
         try {
-            data = JSON.parse(jsonStr);
+            data = JSON.parse(claudeJsonStr);
         } catch (parseErr) {
-            console.warn('JSON parsing failed. Attempting to repair truncated JSON:', parseErr);
-            const repaired = tryRepairJson(jsonStr);
+            console.warn('Claude JSON parsing failed. Attempting to repair:', parseErr);
+            const repaired = tryRepairJson(claudeJsonStr);
             if (repaired) {
                 data = Object.assign({}, defaultData, repaired);
             } else {
@@ -949,6 +1018,9 @@ JSON만 출력.
                 data = defaultData;
             }
         }
+
+        // ChatGPT + Gemini에서 생성한 질문을 data에 병합
+        data.monitoring_queries = allQueries.length > 0 ? allQueries : defaultData.monitoring_queries;
 
         window._wizardData = { storeName, ...data };
 
