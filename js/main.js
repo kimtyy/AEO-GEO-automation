@@ -2373,8 +2373,8 @@ ${chunkQueries.map((q, idx) => `${idx + 1}. ${q}`).join('\n')}
 ]`.trim();
 
         try {
-            // max_tokens: 3000 묶음 호출 (JSON 잘림 방지)
-            const response = await apiService.callClaude(systemPrompt, 3000);
+            // max_tokens: 4000 묶음 호출 (JSON 잘림 방지)
+            const response = await apiService.callClaude(systemPrompt, 4000);
             const text = response.data || response.content || response.text || response.response || '';
 
             let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
