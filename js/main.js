@@ -65,13 +65,13 @@ function renderStoreSelector() {
         const option = document.createElement('option');
         option.value = "";
         option.disabled = true;
-        option.textContent = "매장이 없습니다";
+        option.textContent = "업체가 없습니다";
         selector.appendChild(option);
     }
     
     const addOption = document.createElement('option');
     addOption.value = 'add_new';
-    addOption.textContent = '+ 새 매장 추가';
+    addOption.textContent = '+ 새 업체 추가';
     selector.appendChild(addOption);
 }
 
@@ -388,10 +388,10 @@ function initNavigation() {
             const targetId = item.getAttribute('data-target');
             if (!targetId) return;
 
-            // 매장 설정 완료 여부 체크 (설정 탭이 아닌 다른 탭 클릭 시)
+            // 업체 설정 완료 여부 체크 (설정 탭이 아닌 다른 탭 클릭 시)
             if (targetId !== 'page-settings') {
                 if (!currentStore || !currentStore.store_name) {
-                    showToast('⚠️ 먼저 설정 탭에서 매장 정보를 입력해주세요.');
+                    showToast('⚠️ 먼저 설정 탭에서 업체 정보를 입력해주세요.');
                     const settingsItem = Array.from(menuItems).find(m => m.getAttribute('data-target') === 'page-settings');
                     if (settingsItem) {
                         settingsItem.click();
@@ -509,7 +509,7 @@ async function loadStoreData() {
             }
             
             settingsStoreInfo.innerHTML = `
-                <div style="font-weight: bold;">매장명</div><div id="info-store-name">${currentStore.store_name || ''}</div>
+                <div style="font-weight: bold;">업체명</div><div id="info-store-name">${currentStore.store_name || ''}</div>
                 <div style="font-weight: bold;">브랜드</div><div id="info-brand">${currentStore.brand || ''}</div>
                 <div style="font-weight: bold;">주소</div><div id="info-address">${currentStore.address || ''}</div>
                 <div style="font-weight: bold;">업종</div><div id="info-category">${currentStore.category || ''}</div>
@@ -658,7 +658,7 @@ function initSettingsWizard() {
 
     if (!btnStart) return;
 
-    // 기존 매장이 있으면 매장명 미리 채우기
+    // 기존 업체가 있으면 업체명 미리 채우기
     if (currentStore && currentStore.store_name) {
         storeInput.value = currentStore.store_name;
     }
@@ -725,7 +725,7 @@ function setWizardStep(step) {
 }
 
 /**
- * Claude API를 통해 매장명 → 자동완성 데이터 생성
+ * Claude API를 통해 업체명 → 자동완성 데이터 생성
  * @param {string} storeName
  */
 async function runAutoComplete(storeName) {
@@ -738,11 +738,11 @@ async function runAutoComplete(storeName) {
     loadingBox.classList.add('show');
 
     try {
-        // 1단계: "ChatGPT와 Gemini가 매장 정보를 검색 중..."
-        loadingTxt.textContent = "ChatGPT와 Gemini가 매장 정보를 검색 중...";
+        // 1단계: "ChatGPT와 Gemini가 업체 정보를 검색 중..."
+        loadingTxt.textContent = "ChatGPT와 Gemini가 업체 정보를 검색 중...";
         
         const chatgptPrompt = `
-경기도 가평군 조종면에 위치한 "${storeName}" 매장을 검색해서
+경기도 가평군 조종면에 위치한 "${storeName}" 업체을 검색해서
 아래 JSON 형식으로 알려줘. 모르면 빈 문자열.
 {
   "address": "주소",
@@ -756,7 +756,7 @@ JSON만 출력.
 `.trim();
 
         const geminiPrompt = `
-경기도 가평군 조종면에 위치한 "${storeName}" 매장을 구글에서 검색해서
+경기도 가평군 조종면에 위치한 "${storeName}" 업체을 구글에서 검색해서
 아래 JSON 형식으로 알려줘. 모르면 빈 문자열.
 {
   "address": "주소",
@@ -776,11 +776,11 @@ JSON만 출력.
         try {
             const [chatgptResult, geminiResult] = await Promise.all([
                 apiService.callChatGPT(chatgptPrompt).catch(err => {
-                    console.warn("ChatGPT 매장 검색 실패:", err);
+                    console.warn("ChatGPT 업체 검색 실패:", err);
                     return { data: "" };
                 }),
                 apiService.callGemini(geminiPrompt).catch(err => {
-                    console.warn("Gemini 매장 검색 실패:", err);
+                    console.warn("Gemini 업체 검색 실패:", err);
                     return { data: "" };
                 })
             ]);
@@ -827,17 +827,17 @@ JSON만 출력.
         // 콘솔 로그 추가
         console.log('ChatGPT 수집 결과:', chatgptInfo);
         console.log('Gemini 수집 결과:', geminiInfo);
-        console.log('병합된 매장 정보:', mergedInfo);
+        console.log('병합된 업체 정보:', mergedInfo);
 
         // 3단계: "Claude가 키워드를 생성 중..."
         loadingTxt.textContent = "Claude가 키워드를 생성 중...";
 
         const prompt = `
-당신은 한국 소상공인 GEO(Generative Engine Optimization) 전문가입니다.
-아래 매장 정보와 매장명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
+당신은 한국 로컬 비즈니스 GEO(Generative Engine Optimization) 전문가입니다.
+아래 업체 정보와 업체명을 기반으로 다음 정보를 JSON 형식으로 생성해주세요.
 
-매장명: ${storeName}
-수집된 매장 정보: ${JSON.stringify(mergedInfo)}
+업체명: ${storeName}
+수집된 업체 정보: ${JSON.stringify(mergedInfo)}
 
 출력 형식 (JSON만, 다른 텍스트 없이):
 {
@@ -860,9 +860,9 @@ JSON만 출력.
 }
 
 규칙:
-- niche_keywords: 매장명과 매장 정보를 활용하여 추출한 지역+업종+상황 조합 키워드 7개
+- niche_keywords: 업체명과 업체 정보를 활용하여 추출한 지역+업종+상황 조합 키워드 7개
   예: "가평 현리 단체회식", "가평 군인 회식", "경기 북부 한식", "가평 맥주집", "현리 단체룸", "가평 고기집", "맹호부대 근처 식당"
-- seenow_slug: 매장명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
+- seenow_slug: 업체명을 영문 소문자로 변환한 슬러그 (한글은 발음 영문화)
 - monitoring_queries: AI(ChatGPT/Claude/Gemini)에 물어볼 법한 실제 검색 질문 50개
   (지역+업종+상황 조합, "~추천해줘", "~어디가 좋아?", "~괜찮은 곳" 형식)
   질문이 정확히 50개여야 합니다.
@@ -957,7 +957,7 @@ JSON만 출력.
 
     } catch (err) {
         console.error('AutoComplete error:', err);
-        alert(`AI 자동완성 중 오류가 발생했습니다.\n${err.message}\n\n매장명을 더 구체적으로 입력하거나 잠시 후 다시 시도해주세요.`);
+        alert(`AI 자동완성 중 오류가 발생했습니다.\n${err.message}\n\n업체명을 더 구체적으로 입력하거나 잠시 후 다시 시도해주세요.`);
     } finally {
         btnStart.disabled = false;
         loadingBox.classList.remove('show');
@@ -1053,7 +1053,7 @@ function renderWizardStep2(data) {
 async function saveWizardResult() {
     const btnSave = document.getElementById('btn-wizard-save');
     if (!currentStore) {
-        alert('저장할 매장이 선택되어 있지 않습니다. 상단 매장 선택기를 먼저 확인해주세요.');
+        alert('저장할 업체가 선택되어 있지 않습니다. 상단 업체 선택기를 먼저 확인해주세요.');
         return;
     }
 
@@ -1190,7 +1190,7 @@ function initSettingsEdit() {
                 hoursEditHtml += '</div>';
                 
                 container.innerHTML = `
-                    <div style="font-weight: bold;">매장명</div><div><input type="text" id="edit-store-name" class="form-control" value="${currentStore.store_name || ''}"></div>
+                    <div style="font-weight: bold;">업체명</div><div><input type="text" id="edit-store-name" class="form-control" value="${currentStore.store_name || ''}"></div>
                     <div style="font-weight: bold;">브랜드</div><div><input type="text" id="edit-brand" class="form-control" value="${currentStore.brand || ''}"></div>
                     <div style="font-weight: bold;">주소</div><div><input type="text" id="edit-address" class="form-control" value="${currentStore.address || ''}"></div>
                     <div style="font-weight: bold;">업종</div><div><input type="text" id="edit-category" class="form-control" value="${currentStore.category || ''}"></div>
@@ -1308,7 +1308,7 @@ function initSettingsEdit() {
             if (!currentStore) return;
             const introText = document.getElementById('aeo-intro-textarea').value.trim();
             if (!introText) {
-                alert('우리 가게를 소개하는 글을 먼저 입력해주세요.');
+                alert('우리 업체를 소개하는 글을 먼저 입력해주세요.');
                 return;
             }
 
@@ -1317,16 +1317,16 @@ function initSettingsEdit() {
             btnAnalyzeAeo.disabled = true;
             if (aeoLoading) aeoLoading.style.display = 'block';
 
-            const prompt = `주어진 가게 소개글을 분석하여 다음 14개 항목에 해당하는 마케팅 정보를 JSON 형식으로 추출해주세요.
+            const prompt = `주어진 업체 소개글을 분석하여 다음 14개 항목에 해당하는 마케팅 정보를 JSON 형식으로 추출해주세요.
 소개글에서 명시적으로 언급되지 않은 정보는 빈 문자열("")로 채워주되, naver_place_optimized와 google_biz_optimized는 아래 기준에 따라 최적화된 소개글을 새롭게 생성해 채워주세요.
 중요: 답변에 부연 설명이나 마크다운 백틱 (\`\`\`json ...) 없이 오직 순수한 JSON 객체 텍스트만 출력해야 합니다. 이 텍스트는 JSON.parse()로 바로 변환이 가능해야 합니다.
 
 추출해야 할 JSON의 키와 설명:
 - price_range: 가격대 (예: 1만~2만원대)
-- parking: 주차 정보 (예: 매장 앞 주차 가능)
+- parking: 주차 정보 (예: 업체 앞 주차 가능)
 - capacity: 수용인원 (예: 80석)
 - private_room: 단체룸 (예: 30인 단체룸 보유)
-- story: 핵심 스토리 (매장의 차별화 포인트를 담은 스토리)
+- story: 핵심 스토리 (업체의 차별화 포인트를 담은 스토리)
 - target_customers: 타겟 고객 (예: 군인, 가족 모임)
 - local_context: 주변 맥락 (근처 군부대, 골프장, 역 등 위치 특성)
 - events: 진행 중인 이벤트 (예: 군인 장병 방문 시 음료 서비스)
@@ -1345,9 +1345,9 @@ function initSettingsEdit() {
 - google_biz_optimized: 다음 기준에 맞춰 새로 생성한 구글 비즈니스 프로필 최적화 설명:
   * 750자 이내로 작성
   * 동일한 AEO 핵심 요소(구조화 정보, 맥락 키워드, AI 인용 용이성, 타겟 맥락) 포함
-  * 기본적으로 한국어 중심으로 작성하되, 매장명이나 메뉴명 등 고유명사만 영문을 괄호 병기하여 작성 (예: 설맥 가평현리점 (Seolmaek Gapyeong Hyeonri), 냉면 (Naengmyeon)). 나머지는 모두 한국어로 작성
+  * 기본적으로 한국어 중심으로 작성하되, 업체명이나 메뉴명 등 고유명사만 영문을 괄호 병기하여 작성 (예: 설맥 가평현리점 (Seolmaek Gapyeong Hyeonri), 냉면 (Naengmyeon)). 나머지는 모두 한국어로 작성
 
-가게 소개글:
+업체 소개글:
 ${introText}`;
 
             try {
@@ -1415,7 +1415,7 @@ ${introText}`;
                 const res = await supabaseService.updateStore(currentStore.id, updatedData);
                 if (res) {
                     currentStore = { ...currentStore, ...updatedData };
-                    // 갱신된 매장 목록 동기화
+                    // 갱신된 업체 목록 동기화
                     const idx = storesList.findIndex(s => s.id === currentStore.id);
                     if (idx !== -1) {
                         storesList[idx] = currentStore;
@@ -1477,7 +1477,7 @@ function initNewStoreModal() {
             try {
                 const newStore = await supabaseService.createStore(data);
                 if (newStore) {
-                    alert('매장이 추가되었습니다.');
+                    alert('업체가 추가되었습니다.');
                     storesList = await supabaseService.getAllStores();
                     currentStore = newStore;
                     renderStoreSelector();
@@ -1496,7 +1496,7 @@ function initNewStoreModal() {
                         if(chk) chk.checked = false;
                     });
                 } else {
-                    alert('매장 추가 실패');
+                    alert('업체 추가 실패');
                 }
             } catch (e) {
                 console.error(e);
@@ -1516,7 +1516,7 @@ async function renderAnalysisOptions() {
     if (!targetContainer || !queryContainer) return;
     
     // 대상 선택
-    let targetsHtml = `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="target-checkbox" value="self" data-name="${currentStore.store_name || '우리 매장'}" data-address="${currentStore.address || ''}" checked> ${currentStore.store_name || '우리 매장'} (자사)</label>`;
+    let targetsHtml = `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="target-checkbox" value="self" data-name="${currentStore.store_name || '우리 업체'}" data-address="${currentStore.address || ''}" checked> ${currentStore.store_name || '우리 업체'} (자사)</label>`;
     const competitors = await supabaseService.getCompetitors(currentStore.id) || [];
     competitors.forEach(c => {
         targetsHtml += `<label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="target-checkbox" value="competitor" data-name="${c.competitor_name}" data-address="${c.address || ''}" checked> ${c.competitor_name}</label>`;
@@ -1695,7 +1695,7 @@ function initAnalysis() {
                             prompt = `경쟁 업체 정보: ${target.name}${addrInfo}\n질문: ${q}`;
                         } else {
                             const addrInfo = target.address ? `, 위치: ${target.address}` : '';
-                            prompt = `우리 매장 정보: ${target.name}${addrInfo}\n질문: ${q}`;
+                            prompt = `우리 업체 정보: ${target.name}${addrInfo}\n질문: ${q}`;
                         }
                     }
 
@@ -1971,7 +1971,7 @@ function updateListicleNicheSelect() {
     if (!nicheSelect) return;
 
     if (!currentStore) {
-        nicheSelect.innerHTML = '<option value="">-- 매장을 먼저 선택해주세요 --</option>';
+        nicheSelect.innerHTML = '<option value="">-- 업체를 먼저 선택해주세요 --</option>';
         return;
     }
 
@@ -2007,24 +2007,24 @@ async function generateListicle(title, nicheKeyword) {
     const story = currentStore.story || '';
 
     const systemPrompt = `당신은 지역 맛집과 숨겨진 명소를 냉철하고 통찰력 있게 큐레이션하는 권위 있는 지역 전문 매거진 기자입니다.
-절대 노골적인 단일 매장 홍보글이 아니며, 독자들에게 정보를 제공하는 객관적인 큐레이션 기사 형태로 작성되어야 합니다.
+절대 노골적인 단일 업체 홍보글이 아니며, 독자들에게 정보를 제공하는 객관적인 큐레이션 기사 형태로 작성되어야 합니다.
 
 기사 작성 정보:
 - 대상 니치 검색 키워드: ${nicheKeyword}
 - 매칭 기사 제목: ${title}
-- 우리 매장 정보: 명칭: ${storeName}, 업종: ${category}, 주소: ${address}, 특징/컨셉: ${concept}, 가격대: ${priceRange}, 주차: ${parking}, 좌석: ${capacity}, 독립룸: ${privateRoom}, 매장스토리: ${story}
+- 우리 업체 정보: 명칭: ${storeName}, 업종: ${category}, 주소: ${address}, 특징/컨셉: ${concept}, 가격대: ${priceRange}, 주차: ${parking}, 좌석: ${capacity}, 독립룸: ${privateRoom}, 업체스토리: ${story}
 
 [기사 작성 가이드라인]
 1. 제3자 객관적 관점:
-   - 기사는 추천 가이드 형태이어야 하며 반드시 타 매장 후보군들도 함께 큐레이션(비교 기술) 하세요.
-   - 단, 우리 매장(${storeName})을 전체 리스티클에서 가장 추천도가 높은 주요 매장으로 강조해 배치하되, 객관성과 매체 신뢰도를 높이기 위해 우리 매장(${storeName})에 대한 사소한 아쉬운 점이나 단점도 1가지 이상 유의미하게 솔직히 서술해야 합니다. (예: 인기가 많아 식사 피크 타임 대기가 있다거나 골목 안쪽에 위치해 처음 찾기 헷갈린다 등)
+   - 기사는 추천 가이드 형태이어야 하며 반드시 타 업체 후보군들도 함께 큐레이션(비교 기술) 하세요.
+   - 단, 우리 업체(${storeName})을 전체 리스티클에서 가장 추천도가 높은 주요 업체로 강조해 배치하되, 객관성과 매체 신뢰도를 높이기 위해 우리 업체(${storeName})에 대한 사소한 아쉬운 점이나 단점도 1가지 이상 유의미하게 솔직히 서술해야 합니다. (예: 인기가 많아 식사 피크 타임 대기가 있다거나 골목 안쪽에 위치해 처음 찾기 헷갈린다 등)
 
 2. 4대 증거유닛(Evidence Units) 의무 포함:
    기사 본문 내용에 다음 4대 증거가 독자에게 객관적 사실로 전달될 수 있도록 자연스럽게 작성해야 합니다.
-   ① 수치/통계 (Statistics): 반드시 아래 매장 정보에서 확인된 수치만 사용할 것. 확인되지 않은 평점, 리뷰 수 등은 절대 임의로 생성하지 말 것. 사용 가능한 수치: 수용인원, 단체룸 규모, 영업시간, 가격대 등 매장 정보에 명시된 것만. (예: "단체 30인룸 보유", "매일 17시~익일 1시 영업" 등)
+   ① 수치/통계 (Statistics): 반드시 아래 업체 정보에서 확인된 수치만 사용할 것. 확인되지 않은 평점, 리뷰 수 등은 절대 임의로 생성하지 말 것. 사용 가능한 수치: 수용인원, 단체룸 규모, 영업시간, 가격대 등 업체 정보에 명시된 것만. (예: "단체 30인룸 보유", "매일 17시~익일 1시 영업" 등)
    ② 인용구 (Quotes): 실제 방문 고객이나 관계자의 구체적 한줄 평 (예: "~라는 평을 받는다")
    ③ 출처 (Sources): 통계의 기반 출처 명시 (예: "가평군 통계자료에 따르면" 또는 "네이버 방문자리뷰 분석 결과")
-   ④ 비교 설명 (Comparison): 인근 경쟁 매장 등 대비 우리 매장의 강력한 차별점 (예: "인근 B식당과 달리 단독 룸이 있어 방해받지 않는다")
+   ④ 비교 설명 (Comparison): 인근 경쟁 업체 등 대비 우리 업체의 강력한 차별점 (예: "인근 B식당과 달리 단독 룸이 있어 방해받지 않는다")
 
 [출력 포맷 가이드라인]
 반드시 아래의 단순 JSON 객체 구조로만 출력하고, 마크다운 코드블록 외의 일체의 대화식이나 안내 인삿말은 제외해주세요:
@@ -2091,7 +2091,7 @@ async function loadListiclesList() {
     if (!tableBody) return;
 
     if (!currentStore) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 25px; color: #999;">매장을 먼저 선택해주세요.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 25px; color: #999;">업체를 먼저 선택해주세요.</td></tr>';
         return;
     }
 
@@ -2243,7 +2243,7 @@ async function loadCompetitorAnalysis() {
         console.log('recentRows:', recentRows.length);
 
         const targets = [
-            { isCompetitor: false, name: currentStore.store_name || '우리 매장' },
+            { isCompetitor: false, name: currentStore.store_name || '우리 업체' },
             ...competitors.map(c => ({ isCompetitor: true, name: c.competitor_name }))
         ];
 
@@ -2537,7 +2537,7 @@ async function loadLatestDiagnosisResults() {
         // Claude 종합 처방 요약 텍스트
         const prescriptionEl = document.getElementById('ai-prescription-text');
         if (prescriptionEl) {
-            prescriptionEl.value = `${currentStore.store_name || '매장'}의 GEO(생성형 AI 검색 엔진 최적화) 종합 분석 리포트입니다.\n\n` +
+            prescriptionEl.value = `${currentStore.store_name || '업체'}의 GEO(생성형 AI 검색 엔진 최적화) 종합 분석 리포트입니다.\n\n` +
                 `1. Claude에서는 현재 안정적인 가시성을 보여주고 있으나, 경쟁 브랜드의 신규 언급 점유율 확장에 유의하여 지속적인 긍정 리뷰 유입을 권장합니다.\n` +
                 `2. ChatGPT의 정보 최신화가 필요합니다. 일부 상세 영업시간 및 주말 휴무 여부의 혼동이 식별되어 네이버 스마트플레이스 및 지역 소식란의 텍스트 매칭율을 정교화할 것을 처방합니다.\n` +
                 `3. Gemini 노출 빈도 개선을 위해 주차 공간 보유 혜택과 시그니처 대표 메뉴에 대한 로컬 포스팅 키워드를 추가 배치할 것을 권장합니다.`;
@@ -2624,7 +2624,7 @@ function initContentViewModal() {
 // ================================================================
 
 /**
- * 질문 체크리스트 렌더링 (매장 변경 시 호출)
+ * 질문 체크리스트 렌더링 (업체 변경 시 호출)
  * 기본값: 상위 10개만 선택
  */
 function renderMonitoringQueryChecklist() {
@@ -2897,7 +2897,7 @@ function renderDetailTable(queries, allResults) {
  * 질문 50개 × N회 반복 → Wilson CI 계산 → Supabase 저장
  */
 async function runMonitoringCycle() {
-    if (!currentStore) { alert('매장을 먼저 선택해주세요.'); return; }
+    if (!currentStore) { alert('업체를 먼저 선택해주세요.'); return; }
 
     // 설정 수집
     const repeatCount = parseInt(
@@ -3287,7 +3287,7 @@ function renderChannelPreview(content, channel) {
     const title = content.title || '제목 없음';
     const bodyHtml = parseMarkdown(content.body || '');
     const dateToday = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s/g, '.').replace(/\.$/, '');
-    const storeName = currentStore ? currentStore.store_name : '우리 매장';
+    const storeName = currentStore ? currentStore.store_name : '우리 업체';
 
     let html = '';
 

@@ -37,7 +37,7 @@
                     <h2 id="page-title">설정</h2>
                     <div class="store-selector-container">
                         <select id="store-selector" class="form-control" style="width: auto; min-width: 150px;">
-                            <option value="" disabled selected>매장 불러오는 중...</option>
+                            <option value="" disabled selected>업체 불러오는 중...</option>
                         </select>
                     </div>
                 </div>
@@ -207,10 +207,10 @@
                         <div class="analysis-mode-container" style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px; padding: 10px 15px; background: #f0f4f8; border-radius: 6px; border: 1px solid #d2dbe5;">
                             <span style="font-weight: bold; font-size: 14px; color: #333;">분석 모드 설정:</span>
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: #185FA5; font-weight: 500;">
-                                <input type="radio" name="analysis-mode" value="monitoring" checked style="accent-color: #185FA5;"> 모니터링 모드 (가게 정보 없이 질문만 전송)
+                                <input type="radio" name="analysis-mode" value="monitoring" checked style="accent-color: #185FA5;"> 모니터링 모드 (업체 정보 없이 질문만 전송)
                             </label>
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: #555;">
-                                <input type="radio" name="analysis-mode" value="content" style="accent-color: #185FA5;"> 콘텐츠 생성 모드 (가게 정보 포함)
+                                <input type="radio" name="analysis-mode" value="content" style="accent-color: #185FA5;"> 콘텐츠 생성 모드 (업체 정보 포함)
                             </label>
                         </div>
                         
@@ -302,7 +302,7 @@
                                 <div class="status success" style="margin-top: 5px; margin-bottom: 10px; display: inline-block;">양호</div>
                                 <p class="diagnosis" id="claude-response">"가평 현리 단체 회식" 키워드에 대해 가장 높은 추천율을 보임.</p>
                                 <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
-                                    <strong>매장 언급 질문:</strong> <span id="claude-mention">가평 현리 단체 회식 장소 추천해줘</span>
+                                    <strong>업체 언급 질문:</strong> <span id="claude-mention">가평 현리 단체 회식 장소 추천해줘</span>
                                 </div>
                                 <div class="prescription" style="font-weight: 600; color: #185FA5; background: #f0f6fc; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #185FA5;">현재 상태 유지 및 긍정 리뷰 지속 생성</div>
                             </div>
@@ -311,7 +311,7 @@
                                 <div class="status warning" style="margin-top: 5px; margin-bottom: 10px; display: inline-block;">주의</div>
                                 <p class="diagnosis" id="chatgpt-response">영업시간 및 주차 정보에 대한 환각(Hallucination) 현상 일부 발견.</p>
                                 <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
-                                    <strong>매장 언급 질문:</strong> <span id="chatgpt-mention">가평 현리 밥술집 어디 있어?</span>
+                                    <strong>업체 언급 질문:</strong> <span id="chatgpt-mention">가평 현리 밥술집 어디 있어?</span>
                                 </div>
                                 <div class="prescription" style="font-weight: 600; color: #3B6D11; background: #f4faf0; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #3B6D11;">공식 홈페이지 및 네이버 플레이스 정보 최신화, SEO 태그 점검</div>
                             </div>
@@ -320,7 +320,7 @@
                                 <div class="status" style="margin-top: 5px; margin-bottom: 10px; display: inline-block; background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">보통</div>
                                 <p class="diagnosis" id="gemini-response">신메뉴(눈꽃빙수)에 대한 인지도가 낮음.</p>
                                 <div class="mention-result" style="margin: 12px 0 8px; font-size: 0.9em; color: #555; border-top: 1px dashed #eee; padding-top: 10px;">
-                                    <strong>매장 언급 질문:</strong> <span id="gemini-mention">없음</span>
+                                    <strong>업체 언급 질문:</strong> <span id="gemini-mention">없음</span>
                                 </div>
                                 <div class="prescription" style="font-weight: 600; color: #854F0B; background: #faf4ed; padding: 10px; border-radius: 6px; font-size: 0.9em; border-left: 3px solid #854F0B;">블로그 체험단 배포 시 신메뉴 위주 포스팅 가이드 제공</div>
                             </div>
@@ -348,7 +348,7 @@
                             <div>
                                 <label class="listicle-option-title">1. 타겟 니치 키워드 선택</label>
                                 <select id="listicle-niche-select" class="listicle-select">
-                                    <option value="">-- 매장을 먼저 선택하고 설정 탭에서 니치 키워드를 생성해주세요 --</option>
+                                    <option value="">-- 업체를 먼저 선택하고 설정 탭에서 니치 키워드를 생성해주세요 --</option>
                                 </select>
                             </div>
 
@@ -528,7 +528,7 @@
                                     <span id="monitoring-selected-query-count" style="font-size: 12px; color: var(--text-muted); margin-left: 4px;"></span>
                                 </div>
                                 <div id="monitoring-query-checklist" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; background: var(--bg-main);">
-                                    <div style="text-align: center; color: #aaa; padding: 12px; font-size: 0.88rem;">매장을 선택하면 질문 목록이 표시됩니다.</div>
+                                    <div style="text-align: center; color: #aaa; padding: 12px; font-size: 0.88rem;">업체를 선택하면 질문 목록이 표시됩니다.</div>
                                 </div>
                             </div>
                         </div>
@@ -642,11 +642,11 @@
 
                     <!-- ===== 마법사 Step 인디케이터 ===== -->
                     <div class="card" style="padding: 24px 28px 16px;">
-                        <h3 style="margin-bottom: 20px;">⚙️ 매장 설정 — AI 자동완성</h3>
+                        <h3 style="margin-bottom: 20px;">⚙️ 업체 설정 — AI 자동완성</h3>
                         <div class="wizard-steps" id="wizard-steps">
                             <div class="wizard-step active" data-step="1">
                                 <div class="wizard-step-num">1</div>
-                                <div class="wizard-step-label">매장명 입력</div>
+                                <div class="wizard-step-label">업체명 입력</div>
                             </div>
                             <div class="wizard-step" data-step="2">
                                 <div class="wizard-step-num">2</div>
@@ -658,10 +658,10 @@
                             </div>
                         </div>
 
-                        <!-- Step 1: 매장명 입력 -->
+                        <!-- Step 1: 업체명 입력 -->
                         <div class="wizard-panel active" id="wizard-panel-1">
                             <p style="color: var(--text-muted); margin-bottom: 6px; font-size: 0.93rem;">
-                                매장명만 입력하면 AI가 니치 키워드·Seenow URL·경쟁사·모니터링 질문을 자동으로 생성합니다.
+                                업체명만 입력하면 AI가 니치 키워드·Seenow URL·경쟁사·모니터링 질문을 자동으로 생성합니다.
                             </p>
                             <div class="store-name-input-wrap">
                                 <input type="text" id="wizard-store-name"
@@ -673,7 +673,7 @@
                             </div>
                             <div class="ai-loading-box" id="ai-loading-box">
                                 <div class="ai-spinner"></div>
-                                <span id="ai-loading-text">Claude AI가 매장 정보를 분석 중입니다...</span>
+                                <span id="ai-loading-text">Claude AI가 업체 정보를 분석 중입니다...</span>
                             </div>
                         </div>
 
@@ -735,7 +735,7 @@
                     <div class="card settings-advanced-section">
                         <div class="settings-advanced-toggle" id="settings-advanced-toggle">
                             <span id="settings-advanced-arrow">▶</span>
-                            고급 설정 (기존 매장 정보 직접 수정)
+                            고급 설정 (기존 업체 정보 직접 수정)
                         </div>
                         <div class="settings-advanced-body" id="settings-advanced-body">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -816,11 +816,11 @@
     <div id="new-store-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
         <div class="modal-content card" style="width: 500px; margin: 50px auto; background: white; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3>새 매장 추가</h3>
+                <h3>새 업체 추가</h3>
                 <button id="btn-close-modal" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
             </div>
             <div class="form-group">
-                <label>매장명</label>
+                <label>업체명</label>
                 <input type="text" id="modal-store-name" class="form-control">
             </div>
             <div class="form-group">
