@@ -2269,7 +2269,7 @@ async function loadFaqsList() {
 }
 
 /**
- * Seenow 미니홈피 FAQ 50개 자동생성 (Claude 1회 묶음 호출, max_tokens: 4000)
+ * Seenow 미니홈피 FAQ 50개 자동생성 (10개씩 5회 묶음 호출, max_tokens: 2000)
  */
 async function generateFaqs() {
     if (!currentStore) {
@@ -2294,23 +2294,32 @@ async function generateFaqs() {
 
     if (btn) btn.disabled = true;
     if (loadingBox) loadingBox.style.display = 'block';
-    if (loadingText) loadingText.textContent = `Claude가 질문 ${queries.length}개에 대한 FAQ 답변을 생성 중입니다... (약 15초 소요)`;
 
-    try {
-        const storeName   = currentStore.store_name || currentStore.brand || '';
-        const category    = currentStore.category || '';
-        const address     = currentStore.address || '';
-        const concept     = currentStore.concept || '';
-        const priceRange  = currentStore.price_range || '';
-        const parking     = currentStore.parking || '';
-        const capacity    = currentStore.capacity || '';
-        const privateRoom = currentStore.private_room || '';
-        const hours       = currentStore.hours || '';
-        const story       = currentStore.story || '';
+    const storeName   = currentStore.store_name || currentStore.brand || '';
+    const category    = currentStore.category || '';
+    const address     = currentStore.address || '';
+    const concept     = currentStore.concept || '';
+    const priceRange  = currentStore.price_range || '';
+    const parking     = currentStore.parking || '';
+    const capacity    = currentStore.capacity || '';
+    const privateRoom = currentStore.private_room || '';
+    const hours       = currentStore.hours || '';
+    const story       = currentStore.story || '';
+
+    // 기존 FAQ 전체 삭제 후 배치 생성 준비
+    await supabaseService.deleteFaqs(currentStore.id);
+
+    const chunkSize = 10;
+    const totalQueries = queries.length;
+    let completedCount = 0;
+
+    for (let i = 0; i < totalQueries; i += chunkSize) {
+        const chunkQueries = queries.slice(i, i + chunkSize);
+        const targetProgress = Math.min(i + chunkSize, totalQueries);
 
         const systemPrompt = `
 당신은 로컬 비즈니스 AEO/GEO FAQ 작성 전문가입니다.
-아래 업체 정보와 모니터링 질문 목록(총 ${queries.length}개)을 바탕으로, 각 질문에 대한 고품질 FAQ 답변을 작성해주세요.
+아래 업체 정보와 모니터링 질문 목록(총 ${chunkQueries.length}개)을 바탕으로, 각 질문에 대한 고품질 FAQ 답변을 작성해주세요.
 
 [업체 정보]
 - 업체명: ${storeName}
@@ -2325,7 +2334,7 @@ async function generateFaqs() {
 - 업체 스토리: ${story}
 
 [질문 목록]
-${queries.map((q, idx) => `${idx + 1}. ${q}`).join('\n')}
+${chunkQueries.map((q, idx) => `${idx + 1}. ${q}`).join('\n')}
 
 [답변 작성 가이드라인]
 1. 결론 먼저 (두괄식): 질문에 대한 명확한 핵심 답을 첫 문장에 서술하세요.
@@ -2343,50 +2352,56 @@ ${queries.map((q, idx) => `${idx + 1}. ${q}`).join('\n')}
   ...
 ]`.trim();
 
-        // 1회 묶음 호출, max_tokens: 4000
-        const response = await apiService.callClaude(systemPrompt, 4000);
-        const text = response.data || response.content || response.text || response.response || '';
-
-        // JSON 파싱 (마크다운 및 괄호 추출)
-        let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-        const start = jsonStr.indexOf('[');
-        const end   = jsonStr.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-            jsonStr = jsonStr.substring(start, end + 1);
-        }
-
-        let parsedFaqs = [];
         try {
-            parsedFaqs = JSON.parse(jsonStr);
-        } catch (e) {
-            console.warn('FAQ JSON 파싱 실패, 로컬 헬퍼 복구 시도:', e);
-            try {
-                let repaired = jsonStr.trim();
-                if (!repaired.endsWith(']')) repaired += ']';
-                parsedFaqs = JSON.parse(repaired);
-            } catch (err2) {
-                console.error('FAQ JSON 복구 실패:', err2);
+            // max_tokens: 2000 묶음 호출
+            const response = await apiService.callClaude(systemPrompt, 2000);
+            const text = response.data || response.content || response.text || response.response || '';
+
+            let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+            const start = jsonStr.indexOf('[');
+            const end   = jsonStr.lastIndexOf(']');
+            if (start !== -1 && end !== -1) {
+                jsonStr = jsonStr.substring(start, end + 1);
             }
+
+            let parsedChunk = [];
+            try {
+                parsedChunk = JSON.parse(jsonStr);
+            } catch (e) {
+                console.warn(`FAQ 묶음(${i + 1}~${targetProgress}) 파싱 실패:`, e);
+                try {
+                    let repaired = jsonStr.trim();
+                    if (!repaired.endsWith(']')) repaired += ']';
+                    parsedChunk = JSON.parse(repaired);
+                } catch (err2) {
+                    console.error('FAQ 묶음 JSON 복구 실패:', err2);
+                }
+            }
+
+            if (Array.isArray(parsedChunk) && parsedChunk.length > 0) {
+                // 즉시 Supabase DB 저장
+                await supabaseService.insertFaqs(currentStore.id, parsedChunk);
+                completedCount += parsedChunk.length;
+            }
+
+        } catch (chunkErr) {
+            console.error(`FAQ 묶음(${i + 1}~${targetProgress}) 처리 실패:`, chunkErr);
+            // 중간 실패해도 다음 묶음 계속 진행
         }
 
-        if (!Array.isArray(parsedFaqs) || parsedFaqs.length === 0) {
-            throw new Error('Claude 응답에서 FAQ 데이터를 파싱하지 못했습니다.');
-        }
-
-        // Supabase faqs 테이블 저장
-        const result = await supabaseService.saveFaqs(currentStore.id, parsedFaqs);
-        if (!result) throw new Error('Supabase FAQ 저장 실패');
+        // 실시간 진행상황 업데이트 및 목록 갱신
+        const progressMessage = targetProgress === totalQueries && completedCount > 0
+            ? `FAQ 생성 중... ${targetProgress}/${totalQueries} 완료 ✅`
+            : `FAQ 생성 중... ${targetProgress}/${totalQueries} 완료`;
+        if (loadingText) loadingText.textContent = progressMessage;
 
         await loadFaqsList();
-        alert(`총 ${parsedFaqs.length}개의 Seenow FAQ 답변이 성공적으로 생성 및 저장되었습니다!`);
-
-    } catch (err) {
-        console.error('generateFaqs error:', err);
-        alert(`FAQ 생성 중 오류가 발생했습니다.\n${err.message}`);
-    } finally {
-        if (btn) btn.disabled = false;
-        if (loadingBox) loadingBox.style.display = 'none';
     }
+
+    if (btn) btn.disabled = false;
+    if (loadingBox) loadingBox.style.display = 'none';
+
+    alert(`Seenow FAQ 생성 완료! 총 ${completedCount}개의 FAQ가 성공적으로 저장되었습니다.`);
 }
 
 

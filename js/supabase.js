@@ -375,19 +375,31 @@ const supabaseService = {
     },
 
     /**
-     * 특정 업체의 FAQ 목록 저장 (기존 삭제 후 신규 일괄 등록)
+     * 특정 업체의 기존 FAQ 전체 삭제
      * @param {string} storeId
-     * @param {Array<{question: string, answer: string}>} faqs
      */
-    async saveFaqs(storeId, faqs) {
+    async deleteFaqs(storeId) {
         try {
-            // 1) 기존 FAQ 삭제
-            await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('faqs')
                 .delete()
                 .eq('store_id', storeId);
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error deleting FAQs:', error);
+            return false;
+        }
+    },
 
-            // 2) 신규 FAQ 일괄 삽입
+    /**
+     * 특정 업체의 FAQ 배치 추가 (삭제 없이 추가만 수행)
+     * @param {string} storeId
+     * @param {Array<{question: string, answer: string}>} faqs
+     */
+    async insertFaqs(storeId, faqs) {
+        try {
+            if (!faqs || faqs.length === 0) return [];
             const insertRows = faqs.map(item => ({
                 store_id: storeId,
                 question: item.question,
@@ -400,8 +412,23 @@ const supabaseService = {
                 .select();
 
             if (error) throw error;
-            console.log('FAQs saved successfully:', data);
+            console.log('FAQs batch inserted successfully:', data);
             return data;
+        } catch (error) {
+            console.error('Error inserting FAQs batch:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 특정 업체의 FAQ 목록 저장 (기존 삭제 후 신규 일괄 등록)
+     * @param {string} storeId
+     * @param {Array<{question: string, answer: string}>} faqs
+     */
+    async saveFaqs(storeId, faqs) {
+        try {
+            await this.deleteFaqs(storeId);
+            return await this.insertFaqs(storeId, faqs);
         } catch (error) {
             console.error('Error saving FAQs:', error);
             return null;
