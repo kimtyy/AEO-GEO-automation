@@ -1151,8 +1151,11 @@ async function saveWizardResult() {
         // 모니터링 질문: AI 자동완성 질문은 교체, 수동 추가 질문은 유지
         const data = window._wizardData || {};
         if (data.monitoring_queries && data.monitoring_queries.length > 0) {
-            // 고급 설정에서 수동 추가한 질문 보존
-            const manualQueries = currentStore._manualQueries || [];
+            // DB에 저장된 수동 추가 질문 보존
+            let manualQueries = currentStore.manual_queries || [];
+            if (typeof manualQueries === 'string') {
+                try { manualQueries = JSON.parse(manualQueries); } catch(e) { manualQueries = []; }
+            }
             const aiQueries = data.monitoring_queries;
             // 수동 질문 + AI 질문 병합 (중복 제거)
             updateData.queries = Array.from(new Set([...manualQueries, ...aiQueries]));
@@ -1283,14 +1286,25 @@ function initSettingsEdit() {
         newBtnAddQuery.addEventListener('click', async () => {
             const q = queryInput.value.trim();
             if (q && currentStore) {
+                // queries에 추가
                 let currentQueries = currentStore.queries || [];
                 if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
                 currentQueries.push(q);
                 currentStore.queries = currentQueries;
 
-                // 수동 추가 질문 별도 추적 (AI 자동완성 교체 시 보존용)
-                if (!currentStore._manualQueries) currentStore._manualQueries = [];
-                currentStore._manualQueries.push(q);
+                // manual_queries (DB 컬럼)에도 추가
+                let manualQ = currentStore.manual_queries || [];
+                if (typeof manualQ === 'string') {
+                    try { manualQ = JSON.parse(manualQ); } catch(e) { manualQ = []; }
+                }
+                manualQ.push(q);
+                currentStore.manual_queries = manualQ;
+
+                // DB 저장 (queries + manual_queries 동시 업데이트)
+                await supabaseService.updateStore(currentStore.id, {
+                    queries: currentQueries,
+                    manual_queries: manualQ
+                });
 
                 queryInput.value = '';
                 await loadStoreData();

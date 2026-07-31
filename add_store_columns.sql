@@ -16,3 +16,6 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS naver_place_optimized TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_biz_url TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_biz_current TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_biz_optimized TEXT;
+
+-- 수동 추가 모니터링 질문 (AI 자동완성 교체 시 보존용)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS manual_queries JSONB DEFAULT '[]'::jsonb;
