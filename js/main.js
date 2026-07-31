@@ -27,6 +27,8 @@ async function initStores() {
     storesList = await supabaseService.getAllStores();
     
     if (storesList && storesList.length > 0) {
+        // 가장 먼저 등록한 업체가 기본값으로 표시되도록 created_at 오름차순 정렬
+        storesList.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         currentStore = storesList[0];
     }
     
@@ -470,6 +472,12 @@ async function loadStoreData() {
     try {
         if (!currentStore) return;
         
+        // wizard-store-name 입력란 현재 선택된 업체명으로 동기화
+        const wizardStoreInput = document.getElementById('wizard-store-name');
+        if (wizardStoreInput) {
+            wizardStoreInput.value = currentStore.store_name || currentStore.brand || '';
+        }
+
         const storeHeaderInfo = document.getElementById('store-header-info');
         if (storeHeaderInfo) {
             storeHeaderInfo.innerHTML = `
