@@ -1148,15 +1148,14 @@ async function saveWizardResult() {
             seenow_url: slug ? `seenow.kr/${slug}` : ''
         };
 
-        // 모니터링 질문 병합 (기존 + 신규, 중복 제거)
+        // 모니터링 질문: AI 자동완성 질문은 교체, 수동 추가 질문은 유지
         const data = window._wizardData || {};
         if (data.monitoring_queries && data.monitoring_queries.length > 0) {
-            let existingQueries = currentStore.queries || [];
-            if (typeof existingQueries === 'string') {
-                try { existingQueries = JSON.parse(existingQueries); } catch(e) { existingQueries = []; }
-            }
-            const merged = Array.from(new Set([...existingQueries, ...data.monitoring_queries]));
-            updateData.queries = merged;
+            // 고급 설정에서 수동 추가한 질문 보존
+            const manualQueries = currentStore._manualQueries || [];
+            const aiQueries = data.monitoring_queries;
+            // 수동 질문 + AI 질문 병합 (중복 제거)
+            updateData.queries = Array.from(new Set([...manualQueries, ...aiQueries]));
         }
 
         const res = await supabaseService.updateStore(currentStore.id, updateData);
@@ -1288,6 +1287,11 @@ function initSettingsEdit() {
                 if (typeof currentQueries === 'string') currentQueries = JSON.parse(currentQueries);
                 currentQueries.push(q);
                 currentStore.queries = currentQueries;
+
+                // 수동 추가 질문 별도 추적 (AI 자동완성 교체 시 보존용)
+                if (!currentStore._manualQueries) currentStore._manualQueries = [];
+                currentStore._manualQueries.push(q);
+
                 queryInput.value = '';
                 await loadStoreData();
             }
