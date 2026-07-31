@@ -353,6 +353,59 @@ const supabaseService = {
             console.error('Error updating distribution status:', error);
             return null;
         }
+    },
+
+    /**
+     * 특정 업체의 FAQ 목록 조회
+     * @param {string} storeId
+     */
+    async getFaqs(storeId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('faqs')
+                .select('*')
+                .eq('store_id', storeId)
+                .order('created_at', { ascending: true });
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching FAQs:', error);
+            return [];
+        }
+    },
+
+    /**
+     * 특정 업체의 FAQ 목록 저장 (기존 삭제 후 신규 일괄 등록)
+     * @param {string} storeId
+     * @param {Array<{question: string, answer: string}>} faqs
+     */
+    async saveFaqs(storeId, faqs) {
+        try {
+            // 1) 기존 FAQ 삭제
+            await supabaseClient
+                .from('faqs')
+                .delete()
+                .eq('store_id', storeId);
+
+            // 2) 신규 FAQ 일괄 삽입
+            const insertRows = faqs.map(item => ({
+                store_id: storeId,
+                question: item.question,
+                answer: item.answer
+            }));
+
+            const { data, error } = await supabaseClient
+                .from('faqs')
+                .insert(insertRows)
+                .select();
+
+            if (error) throw error;
+            console.log('FAQs saved successfully:', data);
+            return data;
+        } catch (error) {
+            console.error('Error saving FAQs:', error);
+            return null;
+        }
     }
 };
 

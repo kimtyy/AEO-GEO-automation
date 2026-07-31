@@ -398,6 +398,28 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- FAQ 자동생성 카드 -->
+                    <div class="card" id="faq-generation-card" style="margin-top: 20px;">
+                        <h4>❓ Seenow 미니홈피 FAQ 자동생성</h4>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">
+                            등록된 모니터링 질문 50개를 기반으로 Claude가 두괄식, 수치/통계 기반의 200자 이내 고품질 FAQ 답변을 1회 호출로 일괄 생성합니다.<br/>
+                            생성된 FAQ는 Seenow 미니홈피 FAQ 페이지 및 AI 검색 인용에 실시간 반영됩니다.
+                        </p>
+
+                        <button class="btn btn-primary" id="btn-generate-faqs" style="width: 100%; font-size: 1.05rem; padding: 12px; margin-bottom: 15px;">
+                            ❓ FAQ 50개 자동생성 시작 (Claude 1회 연동)
+                        </button>
+
+                        <div class="faq-loading-box" id="faq-loading-box" style="display: none; padding: 15px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                            <div class="spinner" style="margin: 0 auto 8px;"></div>
+                            <span id="faq-loading-text" style="font-size: 0.9rem; color: var(--text-muted);">Claude가 질문 50개에 대한 FAQ 답변을 생성 중입니다... (약 15초 소요)</span>
+                        </div>
+
+                        <div id="faq-list-container" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; background: var(--bg-main);">
+                            <div style="text-align: center; color: #999; padding: 25px;">생성된 FAQ가 없습니다. 상단 버튼을 눌러 FAQ를 생성해주세요.</div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- 채널 배포 Page -->
