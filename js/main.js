@@ -784,19 +784,6 @@ JSON만 출력.
         console.log('ChatGPT 프롬프트:', chatgptPrompt);
         console.log('Gemini 프롬프트:', geminiPrompt);
 
-        const geminiPrompt = `
-경기도 가평군 조종면에 위치한 "${storeName}" 업체을 구글에서 검색해서
-아래 JSON 형식으로 알려줘. 모르면 빈 문자열.
-{
-  "address": "주소",
-  "category": "업종",
-  "menu": ["메뉴1", "메뉴2"],
-  "hours": "영업시간",
-  "features": "특징 (단체룸, 주차, 규모 등)",
-  "nearby": "주변 특징 (군부대, 골프장 등)"
-}
-JSON만 출력.
-`.trim();
 
         let chatgptText = "";
         let geminiText = "";
